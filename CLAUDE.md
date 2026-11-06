@@ -14,5 +14,5 @@ Lies zuerst `SPEC.md`, `GLOSSARY.md` und `docs/adr/`. Begriffe aus dem Glossar k
   4. Screens: Heute, Kalender, Ketten, Statistik, Einstellungen, Tab-Navigation.
 - Fertig heißt: `flutter analyze` ohne Fehler und `flutter test` grün. Wenn ein Android-SDK verfügbar ist, zusätzlich `flutter build apk --debug`.
 - **Keine Produktentscheidungen treffen.** Ist etwas in der Spec unklar, nimm die einfachste Lösung, die zur Spec passt, und schreibe sie unter „Annahmen“ in `docs/build-notes.md`.
-- **Nicht bauen:** Widget, Live Activity, Notification (#10), Export/Import (#9) und Swift-Code (in der Cloud nicht baubar).
+- **Widget, Live Activity, Notification:** nach `SPEC.md` Abschnitt 11 (Variante A, nur Start/Stopp). Swift-Code ist in der Cloud nicht baubar. **Export/Import gibt es nicht** (#9).
 - Am Ende in `docs/build-notes.md`: was fertig ist, was fehlt, Annahmen, nächste Schritte.

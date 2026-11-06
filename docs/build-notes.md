@@ -57,7 +57,9 @@ Flutter 3.47.9 (stable), Dart 3.13.7.
 
 ## Annahmen
 
-Wo die Spec offen war, habe ich die einfachste passende Lösung gewählt:
+Wo die Spec offen war, habe ich die einfachste passende Lösung gewählt.
+
+> **Geklärt in [#12](https://github.com/HAJ-SPG/StoppApp/issues/12):** Alle Annahmen sind in `SPEC.md` übernommen, **außer 7 und 13**, die geändert wurden: Nachtragungen erledigen einen übersprungenen Schritt (Abschnitt 4 „Nachtragen und Schritte“), vergangene Kalendertage zeigen die tatsächlich gelaufene Kette (Abschnitt 4). Die Spec gilt.
 
 1. **Tag ohne Tageskette:** Es wird kein Tageslauf angelegt. Bekommt der Tag später eine Kette (Wochenregel oder „Kette für heute wählen“), gilt sie sofort.
 2. **Tageslauf neu anlegen** nur, wenn sich die Tageskette von heute wirklich ändert (andere Kette oder keine). Wählt man dieselbe Kette erneut, bleibt der Fortschritt. Beim Neuanlegen werden „übersprungen“ und die gewählte Position zurückgesetzt. Erledigt bleibt, was eine Messung mit dieser `schritt_position` hat.

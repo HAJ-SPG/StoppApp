@@ -2,7 +2,7 @@
 
 Eine mobile Ein-Knopf-Stoppuhr für Ereignisketten, für Android und iPhone, für den persönlichen Gebrauch. Begriffe wie in [`GLOSSARY.md`](GLOSSARY.md), Architektur wie in [`docs/adr/`](docs/adr/).
 
-**Stand:** 6. Nov 2026. Entschieden sind Haupt-Screen, Kalender & Tagesprotokoll, Ereignis- & Ketten-Editor, Statistik, Navigation und Tech-Stack. **Noch offen** (nicht Teil dieser Bau-Runde): Inhalt und Aktionen von Homescreen-Widget, Live Activity und Notification ([#10](https://github.com/HAJ-SPG/StoppApp/issues/10)) sowie Export & Import ([#9](https://github.com/HAJ-SPG/StoppApp/issues/9)).
+**Stand:** 6. Nov 2026. Alles ist entschieden: Haupt-Screen, Kalender & Tagesprotokoll, Ereignis- & Ketten-Editor, Statistik, Navigation, Tech-Stack und Widget, Live Activity & Notification ([#10](https://github.com/HAJ-SPG/StoppApp/issues/10)). Export & Import gibt es nicht ([#9](https://github.com/HAJ-SPG/StoppApp/issues/9)). Die Annahmen aus dem ersten Build sind geklärt ([#12](https://github.com/HAJ-SPG/StoppApp/issues/12)) und in die Abschnitte eingearbeitet.
 
 Jede Ansicht hat einen Wegwerf-Prototyp als Primärquelle. Bei Widerspruch gilt diese Spec, der Prototyp zeigt Aussehen und Verhalten im Detail:
 
@@ -12,6 +12,7 @@ Jede Ansicht hat einen Wegwerf-Prototyp als Primärquelle. Bei Widerspruch gilt 
 | Kalender & Tagesprotokoll | [#6](https://github.com/HAJ-SPG/StoppApp/issues/6) | [`prototype/kalender-tagesprotokoll`](https://github.com/HAJ-SPG/StoppApp/blob/prototype/kalender-tagesprotokoll/prototypes/kalender/index.html) (A Raster + Protokoll-Panel aus C) |
 | Ereignis- & Ketten-Editor | [#7](https://github.com/HAJ-SPG/StoppApp/issues/7) | [`prototype/editor`](https://github.com/HAJ-SPG/StoppApp/blob/prototype/editor/prototypes/editor/index.html) (A Listen) |
 | Statistik | [#8](https://github.com/HAJ-SPG/StoppApp/issues/8) | [`prototype/statistik`](https://github.com/HAJ-SPG/StoppApp/blob/prototype/statistik/prototypes/statistik/index.html) (A Übersicht → Detail) |
+| Widget, Live Activity & Notification | [#10](https://github.com/HAJ-SPG/StoppApp/issues/10), geändert in [#12](https://github.com/HAJ-SPG/StoppApp/issues/12) | [`prototype/widget`](https://github.com/HAJ-SPG/StoppApp/blob/prototype/widget/prototypes/widget/index.html) (A Nur der Knopf, `#knopf`) |
 
 ## 1. Grundregeln
 
@@ -48,7 +49,7 @@ Zwei umschaltbare Ansichten mit denselben Funktionen:
   - Die laufende Messung mit Live-Zeit, danach die kommenden Schritte. Ein kommender Schritt lässt sich antippen und wird damit zum nächsten.
   - Unten eine Leiste mit dem runden Button und der benannten Aktion („Arbeit fahren starten“).
 - **Umschalten**: über einen Umschalter oben rechts neben dem Ketten-Chip, außerdem wechselt Hochwischen in Fokus zur Zeitleiste. Die App startet immer in Fokus. Ein Wechsel hält, bis man zurückschaltet oder die App neu startet.
-- **Kopf**: Datum und Ketten-Chip (Name der Tageskette, antippen = „Kette für heute wählen“).
+- **Kopf**: Datum und Ketten-Chip (Name der Tageskette, antippen = „Kette für heute wählen“). Hat heute eine Tagesausnahme, bietet das Sheet auch „Wochenregel verwenden“.
 
 **Zustände des Buttons**
 
@@ -62,20 +63,22 @@ Zwei umschaltbare Ansichten mit denselben Funktionen:
 **Aktionen**
 
 - **Überspringen** markiert den nächsten Schritt als übersprungen.
-- **Einschieben** startet sofort ein beliebiges Ereignis aus der Bibliothek oder ein neu angelegtes. Danach macht die Kette dort weiter, wo sie war.
-- **Nächstes wählen** zeigt die offenen und die übersprungenen Schritte. Der gewählte Schritt wird zum nächsten, und der große Button macht immer diesen Standardschritt.
+- **Einschieben** startet sofort ein beliebiges Ereignis aus der Bibliothek oder ein neu angelegtes. Danach macht die Kette dort weiter, wo sie war. Einschieben geht auch an Tagen ohne Kette (dann ohne Kettennamen).
+- **Nächstes wählen** zeigt die offenen und die übersprungenen Schritte. Der gewählte Schritt wird zum nächsten, und der große Button macht immer diesen Standardschritt. Die Wahl gilt für **einen** Start, danach ist wieder der erste offene Schritt dran. Wer den gewählten Schritt überspringt, hebt die Wahl auf.
 - **Zeit korrigieren** öffnet ein Sheet bei laufender Messung:
-  - „Gestoppt vor 2 / 5 / 10 / 15 / 30 Min“ stoppt mit Stopp = jetzt − X.
-  - „Begonnen vor 2 / 5 / 10 / 15 / 30 Min“ setzt Start = jetzt − X.
+  - „Gestoppt vor 2 / 5 / 10 / 15 / 30 Min“ stoppt mit Stopp = jetzt − X. Eine Stufe wird nur angeboten, wenn die Messung schon länger als X läuft.
+  - „Begonnen vor 2 / 5 / 10 / 15 / 30 Min“ setzt Start = jetzt − X. Das darf den Start auch nach vorne schieben.
   - „Messung verwerfen“ löscht die Messung, und der Schritt ist wieder offen.
-  - Korrekturen dürfen keine Überschneidung mit der vorigen Messung erzeugen. Start wird höchstens bis zum Stopp der vorigen Messung zurückgesetzt.
+  - Korrekturen dürfen keine Überschneidung mit der vorigen Messung erzeugen. „Vorige Messung“ ist jede abgeschlossene Messung, die vor der laufenden begann. Start wird höchstens bis zu deren spätestem Stopp zurückgesetzt.
+- **Rückgängig** (Hinweis ca. 5 s) gibt es nach Überspringen, Einschieben, Korrekturen und Kettenwahl. Start, Stopp und Nächstes wählen zeigen keinen Hinweis: Dort reicht der Button bzw. „Messung verwerfen“.
 
 ## 4. Kalender & Tagesprotokoll
 
 **Monatsraster** (Mo–So) mit ‹ › für die Monate.
 - Jede Zelle zeigt die Tageskette in ihrer Kettenfarbe.
 - Ein **heller Ton** heißt „aus der Wochenregel“, eine **kräftige Füllung mit Punkt** heißt „Tagesausnahme“.
-- **Heute** hat einen Rahmen. Vergangene Tage zeigen die gemessene Summe.
+- **Heute** hat einen Rahmen. Vergangene Tage zeigen die gemessene Summe, kompakt als `25m` bzw. `1h05` (nur hier, sonst gilt das Dauerformat aus Abschnitt 6).
+- **Vergangene Tage** zeigen die Kette, die tatsächlich gelaufen ist, nicht die heutige Wochenregel: zuerst eine Tagesausnahme des Tages, sonst die Kette aus seinem Tageslauf. Gibt es keinen Tageslauf (App an dem Tag nicht benutzt) oder wurde die Kette inzwischen gelöscht, bleibt die Zelle neutral ohne Kettenfarbe. Heute und künftige Tage zeigen die Tageskette.
 - Darunter eine Legende.
 
 **Tag antippen** wählt den Tag aus, und sein **Tagesprotokoll erscheint unter dem Raster**. Beim Öffnen ist heute ausgewählt.
@@ -84,29 +87,38 @@ Zwei umschaltbare Ansichten mit denselben Funktionen:
 
 **Mehrere Tage:**
 - **Auswählen**: einzelne Tage antippen.
-- **Von–bis**: ersten und letzten Tag antippen.
+- **Von–bis**: ersten und letzten Tag antippen. Ein dritter Tipp startet eine neue Spanne.
+- Der Modus wird über einen Umschalter „Tag / Auswählen / Von–bis“ über dem Raster gewählt.
 - Eine Aktionsleiste unten („n Tage · Kette …“) öffnet dasselbe Ketten-Sheet.
 
 **Wochenregel:** Knopf oben, öffnet ein Sheet mit einer Auswahl je Wochentag (Kette oder „Keine Kette“). Ausnahmen bleiben bestehen.
 
 **Tagesprotokoll**
 - **Kopf**: Datum, Ketten-Chip, Anzahl Messungen, gemessene Summe, Summe der Lücken.
-- **Liste**: chronologisch, mit Uhrzeit, Ereignis und Dauer. Messungen, die unter einem anderen Kettennamen entstanden sind, zeigen „gemessen unter …“.
+- **Liste**: chronologisch, mit Uhrzeit, Ereignis und Dauer. Messungen, die unter einem anderen Kettennamen entstanden sind, zeigen „gemessen unter …“. Verglichen wird mit dem Kettennamen des Tageslaufs, sonst mit der aktuellen Tageskette. Messungen ohne Kettennamen zeigen nichts.
+- **Summe der Lücken** zählt alle Abstände zwischen aufeinanderfolgenden Messungen, auch unter 5 Min.
 - **Lücken** ab 5 Min stehen sichtbar zwischen den Messungen, mit „+ nachtragen“. Das öffnet das Nachtragen mit Start und Stopp der Lücke vorbelegt.
 - Am Ende: **„+ Messung nachtragen“**.
-- **Messung antippen** öffnet das Sheet zum Bearbeiten: Ereignis, Start und Stopp. **Löschen** braucht einen zweiten Tipp zur Bestätigung.
+- **Messung antippen** öffnet das Sheet zum Bearbeiten: Ereignis, Start und Stopp. Die Messung behält ihren Tag. **Löschen** braucht einen zweiten Tipp zur Bestätigung.
+- **Nachtragen und Schritte** (gilt auch, wenn man beim Bearbeiten das Ereignis ändert):
+  - Hat das Ereignis im Tageslauf einen **übersprungenen** Schritt, erledigt die Nachtragung den ersten davon. Beispiel: Kette Aufstehen → Duschen → Frühstück → Duschen, das erste Duschen wurde übersprungen. Die Nachtragung „Duschen“ erledigt das erste Duschen, das zweite wird normal gemessen.
+  - Hat das Ereignis heute nur einen noch **offenen** Schritt, ist Nachtragen dafür gesperrt, mit dem Hinweis „Erst überspringen oder normal messen“. Nachtragen heißt nachher eintragen, nicht vorab.
+  - An vergangenen Tagen ist die Kette verfallen. Dort zählen offene Schritte wie übersprungene.
+  - Kommt das Ereignis in der Kette nicht vor (oder hat der Tag keine Kette), ist Nachtragen frei, und die Messung zählt wie eingeschoben.
+  - Löscht man die Nachtragung, ist der Schritt wieder übersprungen.
+  - Der Kettenname der Nachtragung ist der Name aus dem Tageslauf des Tages, sonst der Name der aktuellen Tageskette.
 - **Prüfung beim Speichern**: Stopp muss nach dem Start liegen, darf nicht in der Zukunft liegen und darf sich nicht mit einer anderen Messung überschneiden. Sonst gibt es eine Fehlermeldung, die die störende Messung nennt.
   - Uhrzeiten beziehen sich auf den Tag vom Tageswechsel bis zum nächsten Tageswechsel: Bei 04:00 bedeutet 01:30 den folgenden Kalendertag.
 - **Die laufende Messung** ist sichtbar, wird aber nur auf dem Haupt-Screen korrigiert.
 - **Zukünftige Tage** haben kein Protokoll, nur die Kettenzuweisung.
-- **Rückgängig**: Jede Änderung zeigt einen Hinweis mit „Rückgängig“ (ca. 5 s).
+- **Rückgängig**: Jede Änderung zeigt einen Hinweis mit „Rückgängig“ (ca. 5 s). Rückgängig gilt nur für die jeweils letzte Änderung und verfällt mit der nächsten (überall in der App).
 
 ## 5. Ketten (Editor)
 
 Zwei Tabs: **Ketten** und **Ereignisse**.
 
 **Ketten-Tab**
-- Liste der Ketten mit Farbe, Name, Anzahl Schritte, Verwendung (z. B. „Mo–Fr · 2 Ausnahmen“) und einer Vorschau der Schritte. Darunter „+ Neue Kette“.
+- Liste der Ketten mit Farbe, Name, Anzahl Schritte, Verwendung (z. B. „Mo–Fr · 2 Ausnahmen“, gezählt werden alle Ausnahmen, vergangene und künftige; ohne Verwendung „nicht eingeplant“) und einer Vorschau der Schritte. Darunter „+ Neue Kette“.
 - **Neue Kette**: Name und Farbe (6 Farben für den Kalender). Sie startet leer.
 
 **Kette öffnen**
@@ -114,7 +126,7 @@ Zwei Tabs: **Ketten** und **Ereignisse**.
 - Darunter, wo die Kette gilt, und die Schritte als nummerierte Liste.
 - Mit dem **Ziehgriff ≡** sortiert man um, **×** entfernt einen Schritt. Kommt ein Ereignis mehrfach vor, steht „n× in der Kette“ daneben.
 - **„+ Schritt hinzufügen“** öffnet eine Suche über die aktiven Ereignisse. Trifft die Eingabe kein Ereignis, bietet die Suche „+ „xyz“ als neues Ereignis anlegen“ an. Trifft sie ein archiviertes, bietet sie „wiederherstellen und einfügen“ an.
-- **Menü ⋯**: Name und Farbe, Duplizieren (Name „… (Kopie)“), Kette löschen.
+- **Menü ⋯**: Name und Farbe, Duplizieren (Name „… (Kopie)“, bei Kollision „… (Kopie 2)“ usw.; die Kopie steht direkt hinter dem Original), Kette löschen.
 - **Läuft die Kette heute**, gelten Änderungen erst **ab morgen**. Der Editor weist darauf hin: „Heute läuft diese Kette (x von n erledigt). Änderungen gelten ab morgen.“
 
 **Ereignisse-Tab**
@@ -123,12 +135,13 @@ Zwei Tabs: **Ketten** und **Ereignisse**.
 - **Ereignis antippen**: umbenennen, archivieren oder löschen.
 
 **Regeln**
-- Ereignis- und Kettennamen sind eindeutig, ohne Rücksicht auf Groß- und Kleinschreibung. Leere Namen sind nicht erlaubt.
+- Ereignis- und Kettennamen sind eindeutig, ohne Rücksicht auf Groß- und Kleinschreibung (auch bei Umlauten). Leerzeichen an den Rändern werden entfernt. Leere Namen sind nicht erlaubt.
 - **Ereignis umbenennen**: Der neue Name gilt überall, auch in alten Messungen.
 - **Kette umbenennen**: Alte Messungen behalten den Namen, unter dem sie gemessen wurden.
 - **Ereignis entfernen**:
   - Mit Messungen wird es **archiviert**, nach Bestätigung. Es wird dabei aus allen Ketten entfernt, erscheint in keiner Auswahl mehr und bleibt in Messungen und Statistik sichtbar.
-  - Ohne Messungen wird es **gelöscht**.
+  - Ohne Messungen wird es **gelöscht**, ohne Rückfrage (Rückgängig möglich).
+- **Kette löschen oder Ereignis archivieren** lässt den heutigen Tageslauf unverändert.
 - **Kette löschen**:
   - Wird sie in der Wochenregel oder in Tagesausnahmen verwendet, fragt ein Sheet, welche Kette diese Tage stattdessen bekommen, oder „Keine Kette“.
   - Sonst genügt eine einfache Bestätigung.
@@ -139,8 +152,8 @@ Zwei Tabs: **Ketten** und **Ereignisse**.
 
 **Filter oben** (gelten für alles darunter):
 - Zeitraum: **Woche / Monat / Jahr / Frei**.
-  - Woche, Monat und Jahr sind Kalenderzeiträume mit ‹ ›, nicht über heute hinaus.
-  - Frei: Datum von und bis.
+  - Woche, Monat und Jahr sind Kalenderzeiträume mit ‹ ›, nicht über heute hinaus. Eine Woche läuft Mo–So.
+  - Frei: Datum von und bis. Bis man einen Zeitraum wählt, gilt das laufende Jahr.
 - **Tageskette**: „Alle Ketten“ oder eine Kette. Gefiltert wird nach dem Kettennamen an der Messung. Zur Auswahl stehen alle Kettennamen, die in Messungen vorkommen.
 - **Wochentage** Mo–So zum An- und Abschalten. Sind alle aus, gelten alle.
 - Darunter eine Zeile: „n Tage mit Messungen“ und, wenn Filter aktiv sind, „zurücksetzen“.
@@ -149,9 +162,9 @@ Zwei Tabs: **Ketten** und **Ereignisse**.
 
 **Detail** (Ereignis antippen, gleiche Filter):
 - **Kennzahlen**: Ø, Median, Anzahl, Min, Max, Summe.
-- **Verlauf**: Ø pro Tag als Linie, bei Zeiträumen über 45 Tage Ø pro Woche. Eine gestrichelte Linie zeigt den Median.
-- **Uhrzeit**: Startzeit jeder Messung als Punkt über das Datum, dazu der Ø-Start.
-- **Verteilung**: Histogramm der Dauer, 5–12 Klassen.
+- **Verlauf**: Ø pro Tag als Linie, bei Zeiträumen über 45 Tage Ø pro Woche (ab Montag). Nur Tage bzw. Wochen mit Messungen erscheinen. Eine gestrichelte Linie zeigt den Median.
+- **Uhrzeit**: Startzeit jeder Messung als Punkt über das Datum, dazu der Ø-Start als Etikett. Startzeiten werden als Minuten seit Tageswechsel gemittelt, damit der Ø nicht über Mitternacht springt.
+- **Verteilung**: Histogramm der Dauer, ⌈√n⌉ gleich breite Klassen, begrenzt auf 5–12.
 - **Nach Wochentag**: Ø-Dauer je Wochentag als Balken.
 
 **Tab „Mein Tag“**: Ø Minuten pro Tag (bezogen auf Tage mit Messungen im Filter) je Ereignis als Balken, dazu die gemessene Ø-Summe pro Tag.
@@ -164,9 +177,9 @@ Zwei Tabs: **Ketten** und **Ereignisse**.
 
 ## 7. Einstellungen
 
-- **Tageswechsel**: Uhrzeit 00:00–06:00 in 15-Minuten-Schritten, Standard 04:00. Eine Änderung gilt ab sofort für die Zuordnung neuer Messungen. Bestehende Messungen behalten ihren Tag.
+- **Tageswechsel**: Uhrzeit 00:00–06:00 in 15-Minuten-Schritten, Standard 04:00. Eine Änderung gilt ab sofort für die Zuordnung neuer Messungen und für die Frage, welcher Tag heute ist. Bestehende Messungen behalten ihren Tag, ein bestehender Tageslauf bleibt unverändert.
 - **Info**: App-Version.
-- Export & Import kommen hierher, sobald #9 entschieden ist.
+- Es gibt keinen Export, keinen Import und keine Sicherung ([#9](https://github.com/HAJ-SPG/StoppApp/issues/9)). Wer die App löscht oder das Gerät wechselt, verliert die Daten. Das ist bewusst so.
 
 ## 8. Aussehen
 
@@ -194,10 +207,15 @@ Nur die App öffnet die Datenbank ([ADR 0002](docs/adr/0002-app-besitzt-datenban
 | `einstellungen` | `schluessel`, `wert` | z. B. `tageswechsel = 240` (Minuten) |
 
 - **Tageslauf**: Beim ersten Öffnen oder der ersten Aktion eines Tages wird die Tageskette als Schnappschuss in `tageslaeufe` gelegt. Deshalb gelten Änderungen am Editor erst ab morgen. Ändert man die Tageskette von heute (Ausnahme im Kalender oder „Kette für heute wählen“), wird der Tageslauf mit der neuen Kette neu angelegt. Gemessenes bleibt, und Schritte gelten als erledigt, wenn es eine Messung mit dieser `schritt_position` gibt.
+  - Neu angelegt wird nur, wenn sich die Tageskette von heute wirklich ändert (andere Kette oder keine). Wählt man dieselbe Kette erneut, bleibt der Fortschritt. Beim Neuanlegen werden „übersprungen“ und `naechster` zurückgesetzt.
+  - Eine geänderte **Wochenregel** legt den heutigen Tageslauf nicht neu an, sie gilt wie eine Editor-Änderung ab morgen. Nur Tagesausnahmen und „Kette für heute wählen“ erneuern ihn.
+  - Hat ein Tag keine Tageskette, wird kein Tageslauf angelegt. Bekommt er später eine, gilt sie sofort.
+  - Wird eine Kette gelöscht, wird `kette_id` in ihren Tagesläufen `null`; `kette_name` bleibt.
 - **Schrittstatus** wird abgeleitet: *erledigt* = Messung mit `schritt_position`, *läuft* = laufende Messung mit `schritt_position`, *übersprungen* = Eintrag in `uebersprungen` (ohne Messung), sonst *offen*. Der nächste Schritt ist `naechster`, falls offen oder übersprungen, sonst der erste offene Schritt.
-- **Eingeschobene** Messungen haben `schritt_position = null`.
+- **Eingeschobene** Messungen haben `schritt_position = null`. Nachgetragene ebenfalls, außer sie erledigen einen übersprungenen Schritt (Abschnitt 4).
+- **IDs** vergibt die Fachlogik (höchste ID + 1), damit Rückgängig nach dem Löschen dieselben IDs wiederherstellt.
 - **Migrationen**: drift `schemaVersion` mit schrittweisen Migrationen. v1 ist Version 1.
-- **Widget-Schnappschuss und Warteschlange** (ADR 0002) kommen mit #10. Die Fachlogik soll aber schon einen Punkt haben, an dem nach jeder Änderung „Zustand geändert“ gemeldet wird.
+- **Widget-Schnappschuss und Warteschlange** (ADR 0002): siehe Abschnitt 11. Die Fachlogik meldet nach jeder Änderung „Zustand geändert“, daran hängt das Schreiben des Schnappschusses.
 
 ## 10. Architektur
 
@@ -207,7 +225,34 @@ Nur die App öffnet die Datenbank ([ADR 0002](docs/adr/0002-app-besitzt-datenban
 - **Bundle-ID** / applicationId: `com.hajspg.stoppapp`. Sie bleibt stabil, weil iOS-Installationen mit kostenloser Apple-ID daran hängen.
 - **Locale** `de_AT` für Datum und Uhrzeit.
 
-## 11. Nicht in v1
+## 11. Außerhalb der App: Widget, Live Activity, Notification
+
+Variante **A · Nur der Knopf** ([#10](https://github.com/HAJ-SPG/StoppApp/issues/10), in [#12](https://github.com/HAJ-SPG/StoppApp/issues/12) von B auf A geändert). Außerhalb der App gibt es nur **Start** und **Stopp** des Standardschritts. Überspringen, Einschieben, Nächstes wählen und Kette wählen gehen nur in der App; wo nötig, öffnet ein Tipp die App an der passenden Stelle.
+
+**Homescreen-Widget:** nur klein (iOS small / Android 2×2), auf beiden Plattformen gleich.
+
+| Zustand | Anzeige | Knopf |
+|---|---|---|
+| Bereit | „Als Nächstes“, Name, „x von n“ | **Start** |
+| Läuft | „Läuft“, Name, Live-Zeit | **Stopp** |
+| Keine Kette | „Keine Kette“ | **Wählen** öffnet die App bei „Kette für heute wählen“ |
+| Kette erledigt | Kettenname, „Erledigt“, „x von n“ | **+** öffnet die App bei Einschieben |
+
+**iOS-Live-Activity:** nur während einer Messung. Inhalt: „StoppApp“, Name, Live-Zeit, Knopf **Stopp**. Dynamic Island kompakt: roter Punkt, Name, Zeit. Stopp beendet die Live Activity. Läuft eine Live Activity länger als 8 h, startet die App sie beim nächsten Öffnen neu ([ADR 0001](docs/adr/0001-flutter-stack.md)).
+
+**Android-Notification:** nur während einer Messung, dauerhaft. Inhalt: „StoppApp · Kette“, Name, „läuft seit HH:MM“ mit Chronometer, Aktion **STOPP**. Wird sie weggewischt (Android 14+), legt die App sie beim nächsten Öffnen neu an.
+
+**Widget-Schnappschuss** ([ADR 0002](docs/adr/0002-app-besitzt-datenbank.md)): Die App schreibt ihn nach jeder Änderung als JSON unter einem einzigen Schlüssel (App Group bzw. SharedPreferences). Felder: `tag`, `zustand` (`keine|bereit|laeuft|erledigt`), `kette`, `laufend` (`ereignis`, `start` als UTC-ms, `schritt_position`), `naechstes` (`ereignis`, `schritt_position`), `erledigt`, `schritte_gesamt`.
+- Die Live-Zeit rechnen Widget und Live Activity selbst aus `start` (`Text(timerInterval:)` bzw. Chronometer).
+- Keine optimistische Anzeige: Die Anzeige ändert sich, sobald die App den neuen Schnappschuss geschrieben hat. Im ersten Build prüfen, ob die Verzögerung spürbar ist.
+
+**Warteschlange:** Ein Eintrag hält `aktion` (`start|stopp`), `zeitpunkt` (UTC-ms, Moment des Tippens), `quelle` (`widget|live_activity|notification`) und die `schritt_position`, die der Schnappschuss beim Tippen zeigte.
+- Wacht die App im Hintergrund auf, wendet sie die Aktion sofort an. Die Warteschlange ist nur der Rückfall.
+- Die App arbeitet Einträge der Reihe nach mit ihrem eigenen Zeitpunkt ab.
+- Ein Eintrag, der nicht mehr zum Zustand passt (andere Position, Stopp ohne laufende Messung, Doppeltipp), wird verworfen.
+
+## 12. Nicht in v1
 
 - Cloud-Sync, Konto, Veröffentlichung in Stores, Ziele/Streaks, Tablet und Web.
-- Bis zur Entscheidung: Homescreen-Widget, Live Activity, Android-Notification (#10), Export & Import (#9).
+- Export, Import und Sicherung ([#9](https://github.com/HAJ-SPG/StoppApp/issues/9)).
+- Mittleres Widget, „Weiter“ (stoppen und nächsten Schritt sofort starten) und Überspringen außerhalb der App (Variante B aus [#10](https://github.com/HAJ-SPG/StoppApp/issues/10), verworfen).
