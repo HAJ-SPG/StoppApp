@@ -59,8 +59,8 @@ class StoppDienst {
 
   // ---------------------------------------------------------------- Beobachter
 
-  /// Punkt, an dem nach jeder Änderung „Zustand geändert“ gemeldet wird
-  /// (später auch für den Widget-Schnappschuss, #10).
+  /// Punkt, an dem nach jeder Änderung „Zustand geändert“ gemeldet wird.
+  /// Daran hängt auch der Widget-Schnappschuss (Spec Abschnitt 11).
   void beobachten(void Function() f) => _beobachter.add(f);
   void nichtMehrBeobachten(void Function() f) => _beobachter.remove(f);
 
@@ -147,8 +147,8 @@ class StoppDienst {
   Aenderung knopfDruecken() =>
       _daten.laufendeMessung != null ? stoppen() : starten();
 
-  /// Startet den nächsten Schritt der Kette.
-  Aenderung starten() {
+  /// Startet den nächsten Schritt der Kette, zum Zeitpunkt [zeit] (sonst jetzt).
+  Aenderung starten({DateTime? zeit}) {
     tagesSicherstellen();
     _keineLaufende();
     final z = heuteZustand;
@@ -159,7 +159,7 @@ class StoppDienst {
       final m = Messung(
         id: naechsteId(d.messungen.keys),
         ereignisId: lauf.schritte[n],
-        start: jetzt.toUtc(),
+        start: (zeit ?? jetzt).toUtc(),
         tag: z.tag,
         ketteName: lauf.ketteName,
         schrittPosition: n,
@@ -171,10 +171,11 @@ class StoppDienst {
     });
   }
 
-  Aenderung stoppen() {
+  /// Stoppt die laufende Messung zum Zeitpunkt [zeit] (sonst jetzt).
+  Aenderung stoppen({DateTime? zeit}) {
     final m = _daten.laufendeMessung;
     if (m == null) throw const FachFehler('Es läuft keine Messung.');
-    var stopp = jetzt.toUtc();
+    var stopp = (zeit ?? jetzt).toUtc();
     if (!stopp.isAfter(m.start)) stopp = m.start.add(const Duration(seconds: 1));
     return _aendern((d) => _mitMessung(d, m.kopie(stopp: stopp)));
   }

@@ -1,6 +1,7 @@
 /// Fachlogik der StoppApp in reinem Dart (ohne Flutter).
 library;
 
+export 'aussen.dart';
 export 'datenbestand.dart';
 export 'dauer_format.dart';
 export 'fehler.dart';
