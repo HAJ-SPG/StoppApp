@@ -28,3 +28,10 @@ DateTime um(int stunde, int minute, {Tag tag = freitag}) =>
   final speicher = SpeicherImSpeicher(d);
   return (StoppDienst(daten: d, uhr: uhr, speicher: speicher), uhr, speicher);
 }
+
+/// Wie [dienst], aber mit [SystemUhr]-ähnlicher fester Uhr für Widget-Tests.
+(StoppDienst, FesteUhr, SpeicherImSpeicher) dienstMitUhr({Datenbestand? daten}) {
+  final ergebnis = dienst(daten: daten);
+  ergebnis.$1.tagesSicherstellen();
+  return ergebnis;
+}
