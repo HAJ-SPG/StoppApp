@@ -84,7 +84,6 @@ class _KalenderScreenState extends ConsumerState<KalenderScreen> {
   Widget build(BuildContext context) {
     final daten = ref.watch(datenProvider);
     final heute = ref.watch(heuteTagProvider);
-    ref.watch(sekundenProvider);
     final f = context.farben;
     return SafeArea(
       child: Column(
