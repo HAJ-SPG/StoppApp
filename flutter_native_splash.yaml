@@ -1,4 +1,6 @@
-# Startbildschirm. Neu erzeugen: dart run flutter_native_splash:create
+# Startbildschirm (Dateien sind erzeugt und eingecheckt). Neu erzeugen:
+#   flutter pub add --dev flutter_native_splash && dart run flutter_native_splash:create
+# und das Paket danach wieder entfernen.
 flutter_native_splash:
   color: "#EEF2EF"
   color_dark: "#0F1714"
