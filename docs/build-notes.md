@@ -7,9 +7,9 @@ Bau-Runde vom 6. Nov 2026 auf Branch `build/v1`, Draft-PR [#11](https://github.c
 | Prüfung | Ergebnis |
 |---|---|
 | `flutter analyze` | keine Probleme |
-| `flutter test` | 81 Tests grün (Fachlogik, drift-Rundreise, Widget-Smoke-Tests) |
-| `flutter build apk --debug` | **nicht ausgeführt**: Kein Android-SDK in der Cloud-Umgebung, und deren Netzwerk sperrt `dl.google.com`, wo SDK und Google-Maven liegen |
-| iOS-Build | nicht möglich (braucht einen Mac) |
+| `flutter test` | 98 Tests grün (Fachlogik, drift-Rundreise, Widget-Smoke-Tests) |
+| `flutter build apk --debug` | grün in GitHub Actions (`android.yml`), APK unter Actions → Artifacts |
+| iOS-Build | kompiliert ohne Signatur in GitHub Actions (`ios.yml`); Installation braucht einen Mac |
 
 Flutter 3.47.9 (stable), Dart 3.13.7.
 
@@ -47,13 +47,22 @@ Flutter 3.47.9 (stable), Dart 3.13.7.
 - Aussehen: Farben aus den Prototypen inkl. Dark Mode, Schriften Bricolage Grotesque, Atkinson Hyperlegible und IBM Plex Mono liegen in `assets/fonts/` (OFL-Lizenzen daneben).
 - Plattform: `com.hajspg.stoppapp`, nur Hochformat, Android `minSdk 29` (Android 10), iOS 17.0, nur iPhone. Locale `de_AT`.
 
+## Bau-Runde 2 (7. Nov 2026, nach Abschluss der Spec in #12)
+
+- **Nachtragung** erledigt den ersten übersprungenen Schritt ihres Ereignisses. Ist der Schritt heute noch offen, ist Nachtragen gesperrt. An vergangenen Tagen zählen offene Schritte wie übersprungene (`nachtragungsSchritt`).
+- **Kalender:** Vergangene Tage zeigen die tatsächlich gelaufene Kette aus dem Tageslauf (`kalenderKette`).
+- **Widget-Schnappschuss und Warteschlange** in reinem Dart (`lib/domain/aussen.dart`) mit Tests. Die Brücke zu den Plattformen liegt in `lib/aussen/aussen.dart` (`home_widget`).
+- **Android:** kleines Widget (`StoppWidget`), Notification mit STOPP während einer Messung, Tipps landen über `AktionEmpfaenger` in der Warteschlange und wecken die App im Hintergrund.
+- **iOS:** Widget und Live Activity (`ios/StoppWidget`), Tipp-Aktion `StoppAktion` (`ios/Gemeinsam`), Live-Activity-Steuerung in `ios/Runner/LiveAktivitaet.swift`. Das Widget-Target legt man einmal am Mac an: [`ios-einrichtung.md`](ios-einrichtung.md).
+- **App-Icon und Startbildschirm** (`assets/icon/`, Splash über `flutter_native_splash`).
+- **CI:** `ios.yml` prüft bei Änderungen am iOS-Code, ob App und Widget-Extension kompilieren (ohne Signatur).
+
 ## Was fehlt
 
-- Laut Auftrag nicht gebaut: Homescreen-Widget, Live Activity, Notification (#10), Export und Import (#9), Swift-Code.
-- **Kein APK-Build geprüft.** Freischalten ließe sich das in den Netzwerkeinstellungen der Cloud-Umgebung (Hosts `dl.google.com` und `maven.google.com`) oder lokal mit `flutter build apk --debug`.
-- Nicht auf echten Geräten getestet: Gefühl der Gesten, Tastatur über Sheets, Performance mit vielen Messungen.
-- Kein App-Icon und kein Splash (Flutter-Standard).
-- Die Widget-Tests nutzen die Testschrift von Flutter. Screenshots mit den echten Schriften entstanden über einen Hilfstest, der nicht eingecheckt ist.
+- Nicht auf echten Geräten getestet: Gesten, Tastatur über Sheets, Widget, Notification, Live Activity, Performance mit vielen Messungen.
+- Wie lange es vom Tipp im Widget bis zur neuen Anzeige dauert (keine optimistische Anzeige, Spec Abschnitt 11).
+- iOS: Ob die App nach einem Widget-Tipp bei ganz geschlossener App sofort misst oder erst beim nächsten Öffnen (Rückfall Warteschlange), siehe `ios-einrichtung.md`.
+- Die Widget-Tests nutzen die Testschrift von Flutter.
 
 ## Annahmen
 
@@ -99,10 +108,6 @@ Die App hält den ganzen Datenbestand im Speicher. `StoppDienst` rechnet ihn bei
 
 ## Nächste Schritte
 
-1. Android-Build lokal (`flutter build apk --debug`) und auf dem Gerät testen, danach iOS über Xcode.
-2. Gesten und Sheets auf echten Geräten prüfen, vor allem Hochwischen, Ziehgriff und die Tastatur.
-3. #10 entscheiden und an `StoppDienst.beobachten` den Widget-Schnappschuss und die Warteschlange (ADR 0002) anbinden.
-4. #9 Export/Import in die Einstellungen.
-5. App-Icon und Splash.
-6. Bei sehr vielen Messungen (mehrere Jahre) die Ladezeit messen. Falls nötig, Messungen gezielt laden statt alles in den Speicher.
-7. Annahmen oben gegenlesen und, wo nötig, in die Spec übernehmen.
+1. Debug-APK aus GitHub Actions auf dem Android-Handy installieren und testen (Widget, Notification, Gesten).
+2. iOS am Mac nach [`ios-einrichtung.md`](ios-einrichtung.md) einrichten und testen.
+3. Bei sehr vielen Messungen (mehrere Jahre) die Ladezeit messen. Falls nötig, Messungen gezielt laden statt alles in den Speicher.
