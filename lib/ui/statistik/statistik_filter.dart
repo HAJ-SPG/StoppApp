@@ -103,14 +103,32 @@ class StatistikFilterKopf extends ConsumerWidget {
           ),
         ),
       ]),
-      Wrap(spacing: 4, runSpacing: 4, children: [
+      Row(children: [
         for (var w = 1; w <= 7; w++)
-          FilterChip(
-            label: Text(wochentagKurz[w - 1]),
-            selected: a.wochentage.contains(w),
-            showCheckmark: false,
-            visualDensity: VisualDensity.compact,
-            onSelected: (_) => notifier.wochentagUmschalten(w),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Material(
+                color: a.wochentage.contains(w) ? f.goSoft : Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: a.wochentage.contains(w) ? f.go : f.line),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => notifier.wochentagUmschalten(w),
+                  child: SizedBox(
+                    height: 36,
+                    child: Center(
+                      child: Text(wochentagKurz[w - 1],
+                          style: TextStyle(
+                              fontWeight: a.wochentage.contains(w) ? FontWeight.w700 : FontWeight.w400,
+                              color: a.wochentage.contains(w) ? f.ink : f.muted)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
       ]),
       const SizedBox(height: 6),

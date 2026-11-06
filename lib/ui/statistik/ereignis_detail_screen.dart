@@ -106,6 +106,15 @@ FlGridData _raster(BuildContext context) => FlGridData(
 
 AxisTitles _keine() => const AxisTitles();
 
+double _datumsIntervall(StatistikFilter f) => math.max(1, (f.anzahlTage / 4).floorToDouble());
+
+/// Datumslabel nur auf Vielfachen des Intervalls (sonst überlappt das letzte).
+Widget _datumsLabel(BuildContext context, StatistikFilter f, double v) {
+  final i = v.round();
+  if (i % _datumsIntervall(f).round() != 0) return const SizedBox();
+  return Text(datumKurz(f.von.plusTage(i)), style: achsenStil(context));
+}
+
 AxisTitles _minutenAchse(BuildContext context) => AxisTitles(
       sideTitles: SideTitles(
         showTitles: true,
@@ -148,8 +157,8 @@ class _VerlaufDiagramm extends StatelessWidget {
           sideTitles: SideTitles(
             showTitles: true,
             reservedSize: 22,
-            interval: math.max(1, (filter.anzahlTage / 4).floorToDouble()),
-            getTitlesWidget: (v, meta) => Text(datumKurz(filter.von.plusTage(v.round())), style: achsenStil(context)),
+            interval: _datumsIntervall(filter),
+            getTitlesWidget: (v, meta) => _datumsLabel(context, filter, v),
           ),
         ),
       ),
@@ -200,16 +209,18 @@ class _UhrzeitDiagramm extends StatelessWidget {
           sideTitles: SideTitles(
             showTitles: true,
             reservedSize: 40,
-            interval: math.max(60, ((maxY - minY) / 4 / 60).ceil() * 60).toDouble(),
-            getTitlesWidget: (v, meta) => Text(uhrzeitAusMinuten(v.round(), tageswechsel), style: achsenStil(context)),
+            interval: maxY - minY <= 120 ? 30 : ((maxY - minY) / 4 / 60).ceil() * 60.0,
+            getTitlesWidget: (v, meta) => v == meta.min || v == meta.max
+                ? const SizedBox()
+                : Text(uhrzeitAusMinuten(v.round(), tageswechsel), style: achsenStil(context)),
           ),
         ),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
             reservedSize: 22,
-            interval: math.max(1, (filter.anzahlTage / 4).floorToDouble()),
-            getTitlesWidget: (v, meta) => Text(datumKurz(filter.von.plusTage(v.round())), style: achsenStil(context)),
+            interval: _datumsIntervall(filter),
+            getTitlesWidget: (v, meta) => _datumsLabel(context, filter, v),
           ),
         ),
       ),

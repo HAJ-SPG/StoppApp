@@ -49,7 +49,7 @@ class _Kopf extends ConsumerWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(datumLang(z.tag),
+          child: Text(datumKopf(z.tag),
               maxLines: 1, overflow: TextOverflow.ellipsis, style: ueberschrift(20, farbe: f.ink)),
         ),
         const SizedBox(width: 8),
@@ -280,8 +280,9 @@ class _Aktionen extends ConsumerWidget {
     final hatNaechsten = z.naechster != null;
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 4,
+      spacing: 0,
       children: [
+        for (final w in <Widget>[
         TextButton(
             onPressed: hatNaechsten ? () => ueberspringen(context, ref) : null, child: const Text('Überspringen')),
         TextButton(onPressed: () => einschieben(context, ref), child: const Text('Einschieben')),
@@ -289,6 +290,15 @@ class _Aktionen extends ConsumerWidget {
           onPressed: z.waehlbareSchritte.isNotEmpty ? () => naechstesWaehlen(context, ref, z) : null,
           child: const Text('Nächstes wählen'),
         ),
+        ])
+          TextButtonTheme(
+            data: TextButtonThemeData(
+              style: Theme.of(context).textButtonTheme.style!.copyWith(
+                    padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8, vertical: 10)),
+                  ),
+            ),
+            child: w,
+          ),
       ],
     );
   }
@@ -514,7 +524,7 @@ class _KleinKnopf extends StatelessWidget {
           side: BorderSide(color: f.line),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           minimumSize: const Size(0, 34),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontFamily: schriftText, fontSize: 13, fontWeight: FontWeight.w700),
         ),
         onPressed: onTap,
         child: Text(text),

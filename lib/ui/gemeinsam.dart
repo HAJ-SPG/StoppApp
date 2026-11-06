@@ -6,6 +6,7 @@ import 'theme.dart';
 
 const locale = 'de_AT';
 
+String datumKopf(Tag t) => DateFormat('EEE, d. MMM', locale).format(t.datum);
 String datumLang(Tag t) => DateFormat('EEEE, d. MMMM', locale).format(t.datum);
 String datumMittel(Tag t) => DateFormat('EEE, d. MMM yyyy', locale).format(t.datum);
 String datumKurz(Tag t) => DateFormat('d. M.', locale).format(t.datum);
