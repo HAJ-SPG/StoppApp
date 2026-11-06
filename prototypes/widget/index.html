@@ -1,0 +1,428 @@
+<title>StoppApp Widget</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYP – Wegwerf-Code für Ticket #10 „Widget, Live Activity & Notification: Inhalt und Aktionen“.
+  Drei Varianten, umschaltbar über die schwarze Leiste unten (← →) oder #knopf, #weiter, #fernbedienung:
+    A Nur der Knopf   – Widget klein, Live Activity/Notification nur während einer Messung, nur Start/Stopp.
+    B Knopf + Weiter  – Widget klein + mittel, „Weiter“ = Stoppen und nächsten Schritt sofort starten, Überspringen.
+    C Fernbedienung   – Widget mittel + groß mit der ganzen Kette, jeden Schritt direkt starten; Live Activity/Notification den ganzen Tag.
+  Zustand nur im Speicher. Zeit läuft echt, „+5 Min“ spult vor. Rechts unten: Schnappschuss, den die App schreiben müsste (ADR 0002).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: Kopf + Szenario-Leiste, darunter zwei Geräte (iPhone, Android) mit je Homescreen + Sperrbildschirm/Benachrichtigungen, dann Notizen + Schnappschuss. */
+:root {
+  --paper: #EEF2EF; --surface: #FFFFFF; --ink: #14201B; --muted: #5E6D66; --line: #CED8D3;
+  --go: #1E7A57; --go-soft: #D3EADF; --stop: #C8442C; --stop-soft: #F6DDD6; --skip: #9AA6A0;
+  --wall1: #9DB8AC; --wall2: #E3D6BE; --lock1: #2B3C35; --lock2: #5B6F66;
+  --glass: rgba(20,32,27,.55); --glass-fg: #F4F7F5; --icon: rgba(255,255,255,.55);
+  --proto-bg: #111; --proto-fg: #F5F5F5;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --wall1: #24352E; --wall2: #3E3A2F; --lock1: #0B110F; --lock2: #26332D;
+  --glass: rgba(0,0,0,.55); --glass-fg: #F4F7F5; --icon: rgba(255,255,255,.14);
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --wall1: #24352E; --wall2: #3E3A2F; --lock1: #0B110F; --lock2: #26332D;
+  --glass: rgba(0,0,0,.55); --glass-fg: #F4F7F5; --icon: rgba(255,255,255,.14);
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; border-radius: 8px; }
+.num, .tm { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+#page { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 90px; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(24px, 5vw, 32px); margin: 0; text-wrap: balance; }
+.lead { color: var(--muted); margin: 4px 0 0; max-width: 68ch; }
+.eyebrow { text-transform: uppercase; letter-spacing: .1em; font-size: 11px; font-weight: 700; color: var(--muted); }
+
+/* Szenario-Leiste */
+.ctrl { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button { padding: 7px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.clock { font-family: var(--mono); font-weight: 600; font-size: 18px; }
+.ctrl .sp { flex: 1; }
+
+/* Geräte */
+.devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 470px), 1fr)); gap: 18px; }
+.device { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.device h2 { font-family: var(--display); font-size: 18px; margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.device h2 small { font-family: var(--body); font-weight: 400; font-size: 13px; color: var(--muted); }
+.screens { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-start; }
+.scr { width: min(100%, 228px); flex: 1 1 210px; max-width: 260px; display: flex; flex-direction: column; gap: 6px; }
+.scr > .cap { font-size: 12px; color: var(--muted); font-weight: 700; }
+.phone { container-type: inline-size; border-radius: 30px; padding: 14px 12px 18px; min-height: 380px; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
+.phone.home { background: linear-gradient(160deg, var(--wall1), var(--wall2)); }
+.phone.lock { background: linear-gradient(180deg, var(--lock1), var(--lock2)); color: var(--glass-fg); }
+.and .phone { border-radius: 22px; }
+
+/* Homescreen-Raster: 4 Spalten, Zeilen so hoch wie breit */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: calc((100cqw - 24px - 3 * 10px) / 4); gap: 10px; margin-top: 8px; }
+.app { background: var(--icon); border-radius: 22%; }
+.and .app { border-radius: 50%; transform: scale(.82); }
+.w { grid-column: span 2; grid-row: span 2; background: var(--surface); color: var(--ink); border-radius: 20px; padding: 10px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.and .w { border-radius: 24px; }
+.w.m { grid-column: span 4; }
+.w.l { grid-column: span 4; grid-row: span 4; }
+.w.l3 { grid-column: span 4; grid-row: span 3; }
+.w .nm { font-family: var(--display); font-weight: 800; font-size: 17px; line-height: 1.05; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.w .tm { font-size: 15px; font-weight: 600; color: var(--stop); }
+.w .sub { font-size: 11px; color: var(--muted); }
+.w .fill { flex: 1; min-height: 4px; }
+.w .row-end { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; }
+.rb { width: 46px; height: 46px; border-radius: 50%; background: var(--go); color: #fff; font-family: var(--display); font-weight: 800; font-size: 12px; flex: none; display: grid; place-items: center; box-shadow: 0 0 0 4px var(--go-soft); }
+.rb.run { background: var(--stop); box-shadow: 0 0 0 4px var(--stop-soft); }
+.rb.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.rb.big { width: 72px; height: 72px; font-size: 14px; box-shadow: 0 0 0 6px var(--go-soft); }
+.rb.big.run { box-shadow: 0 0 0 6px var(--stop-soft); }
+.rb:active, .pill:active, .mini:active { transform: scale(.94); }
+.pill { border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pill.go { border-color: var(--go); color: var(--go); }
+.dots { display: flex; gap: 4px; flex-wrap: wrap; }
+.dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--line); }
+.dot.done { background: var(--go); border-color: var(--go); }
+.dot.skip { background: var(--skip); border-color: var(--skip); opacity: .5; }
+.dot.run { background: var(--stop); border-color: var(--stop); }
+.dot.next { border-color: var(--go); }
+.m-wrap { display: flex; gap: 12px; align-items: center; height: 100%; min-width: 0; }
+.m-wrap .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.m-wrap .acts { display: flex; gap: 6px; margin-top: 4px; min-width: 0; }
+
+/* Ketten-Liste im großen Widget */
+.kl { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; flex: 1; min-height: 0; overflow: hidden; }
+.kr { display: grid; grid-template-columns: 12px 1fr auto; gap: 7px; align-items: center; padding: 3px 4px; border-radius: 8px; font-size: 12px; min-height: 24px; }
+.kr .mk { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line); }
+.kr.done .mk { background: var(--go); border-color: var(--go); } .kr.done .t { color: var(--muted); }
+.kr.skip .t { text-decoration: line-through; color: var(--skip); } .kr.skip .mk { border-style: dashed; }
+.kr.run { background: var(--stop-soft); } .kr.run .mk { background: var(--stop); border-color: var(--stop); } .kr.run .t { font-weight: 700; }
+.kr.next { background: var(--go-soft); } .kr.next .mk { border-color: var(--go); } .kr.next .t { font-weight: 700; }
+.kr .r { font-size: 11px; color: var(--muted); }
+.kr.run .r { color: var(--stop); font-weight: 600; }
+.mini { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--go); color: #fff; }
+.mini.run { background: var(--stop); }
+.mini.out { background: transparent; color: var(--go); box-shadow: inset 0 0 0 1.5px var(--go); }
+.foot { display: flex; gap: 6px; margin-top: 6px; }
+
+/* Sperrbildschirm */
+.island { align-self: center; min-height: 26px; min-width: 90px; max-width: 92%; background: #000; color: #fff; border-radius: 999px; display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 4px 12px; font-size: 11px; font-weight: 700; }
+.island .d { width: 8px; height: 8px; border-radius: 50%; background: #F06A50; flex: none; }
+.island .d.go { background: #3FBF8A; }
+.island .tx { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.island .tm { color: #F06A50; }
+.big-time { font-family: var(--display); font-weight: 700; font-size: 56px; text-align: center; line-height: 1; margin-top: 6px; }
+.lock-date { text-align: center; font-size: 13px; opacity: .85; }
+.la { background: var(--glass); color: var(--glass-fg); border-radius: 20px; padding: 12px; display: flex; flex-direction: column; gap: 8px; backdrop-filter: blur(8px); margin-top: auto; }
+.and .la { border-radius: 16px; background: var(--surface); color: var(--ink); margin-top: 0; }
+.la .hd { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; opacity: .8; }
+.la .ln { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.la .nm { font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.1; min-width: 0; }
+.la .tm { font-size: 22px; font-weight: 600; color: #FF8A73; }
+.and .la .tm { color: var(--stop); font-size: 16px; }
+.la .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.la .b { flex: 1; padding: 8px 6px; border-radius: 12px; font-weight: 700; font-size: 12px; background: rgba(255,255,255,.16); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.la .b.stop { background: #E0533A; color: #fff; }
+.la .b.go { background: #2F9E6F; color: #fff; }
+.and .la .btns { gap: 2px; }
+.and .la .b { flex: none; background: none; color: var(--go); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; padding: 6px 8px; border-radius: 8px; }
+.and .la .b.stop { color: var(--stop); background: none; }
+.and .la .b.go { color: var(--go); background: none; }
+.none { border: 1.5px dashed rgba(255,255,255,.35); border-radius: 16px; padding: 12px; font-size: 12px; opacity: .8; text-align: center; margin-top: auto; }
+.and .none { margin-top: 0; }
+.shade { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.shade span { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.appln { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); }
+.appln i { width: 14px; height: 14px; border-radius: 50%; background: var(--go); display: inline-block; }
+.dim { font-size: 11px; opacity: .7; text-align: center; }
+
+/* Notizen + Schnappschuss + Log */
+.below { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; }
+.card h3 { font-family: var(--display); font-size: 17px; margin: 0 0 8px; }
+.card ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.card li { line-height: 1.4; }
+pre { font-family: var(--mono); font-size: 12px; background: var(--paper); border-radius: 10px; padding: 10px; overflow-x: auto; margin: 0; }
+.log { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.log div { border-left: 3px solid var(--line); padding-left: 8px; }
+.log div.app { border-color: var(--go); }
+.log .t { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+
+#proto { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 999px; display: flex; align-items: center; gap: 2px; padding: 4px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.3); max-width: calc(100% - 24px); }
+#proto button { color: var(--proto-fg); padding: 8px 12px; border-radius: 999px; white-space: nowrap; }
+#proto button:hover { background: rgba(127,127,127,.25); }
+#proto .vl { font-weight: 700; min-width: 150px; text-align: center; }
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); padding: 9px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 31; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="page">
+  <header>
+    <span class="eyebrow">Prototyp · Ticket „Widget, Live Activity &amp; Notification“</span>
+    <h1>Die StoppApp außerhalb der App</h1>
+    <p class="lead">Was zeigen Homescreen-Widget, Live Activity und Android-Notification, und was kann man dort antippen? Drei Varianten, umschaltbar unten. Alles hier ist antippbar: Die Knöpfe ändern den Tag wie in der echten App.</p>
+  </header>
+  <div class="ctrl">
+    <span class="eyebrow">Zustand</span>
+    <div class="seg" id="scen"></div>
+    <span class="sp"></span>
+    <span class="clock" id="clock">7:12</span>
+    <div class="seg"><button id="plus5">+5 Min</button></div>
+  </div>
+  <div class="devices" id="devices"></div>
+  <div class="below">
+    <div class="card" id="notes"></div>
+    <div class="card"><h3>Was beim Tippen passiert</h3><div class="log" id="log"></div></div>
+    <div class="card"><h3>Widget-Schnappschuss</h3><p class="lead" style="margin:0 0 8px;font-size:13px">So viel muss die App nach jeder Änderung für diese Variante in den App-Group-Speicher schreiben (ADR 0002).</p><pre id="snap"></pre></div>
+  </div>
+</div>
+<div id="proto"><button id="prev" aria-label="Vorige Variante">‹</button><span class="vl" id="vl"></span><button id="next" aria-label="Nächste Variante">›</button></div>
+<div id="toast" hidden></div>
+
+<script>
+const VARIANTS = [
+  { key: "knopf", label: "A · Nur der Knopf" },
+  { key: "weiter", label: "B · Knopf + Weiter" },
+  { key: "fernbedienung", label: "C · Fernbedienung" },
+];
+const KETTE = "Arbeitstag";
+const STEPS = ["Aufstehen", "Duschen", "Frühstück", "Arbeit fahren", "Arbeit", "Heim fahren"];
+let offset = 0; // simulierte Zeit
+const now = () => Date.now() + offset;
+{ const d = new Date(); d.setHours(7, 12, 0, 0); offset = d - Date.now(); }
+
+let S; // Tageszustand
+const MIN = 60000;
+function scenario(k) {
+  const t = now();
+  S = { scen: k, kette: KETTE, status: STEPS.map(() => "offen"), running: null, chosen: null, dauer: {}, laStart: null };
+  if (k === "keine") { S.kette = null; }
+  if (k === "bereit" || k === "laeuft") { S.status[0] = S.status[1] = "erledigt"; S.dauer = { 0: 4 * MIN + 10e3, 1: 9 * MIN + 30e3 }; S.laStart = t - 25 * MIN; }
+  if (k === "laeuft") { S.running = { pos: 2, name: STEPS[2], start: t - 6 * MIN - 12e3 }; }
+  if (k === "erledigt") { S.status = ["erledigt", "erledigt", "erledigt", "erledigt", "übersprungen", "erledigt"]; STEPS.forEach((_, i) => S.dauer[i] = (8 + i * 5) * MIN); }
+  log = [];
+  render();
+}
+const nextPos = () => S.chosen ?? S.status.findIndex((s, i) => s === "offen" && !(S.running && S.running.pos === i));
+const nextAfter = p => S.status.findIndex((s, i) => i > p && s === "offen");
+function zustand() {
+  if (S.running) return "laeuft";
+  if (!S.kette) return "keine";
+  return nextPos() < 0 ? "erledigt" : "bereit";
+}
+const doneCount = () => S.status.filter(s => s === "erledigt").length;
+
+// ---------- Aktionen (simuliert die Hintergrund-Aktion der App) ----------
+let log = [];
+function hhmm(t) { const d = new Date(t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function hhmmss(t) { const d = new Date(t); return hhmm(t) + ":" + String(d.getSeconds()).padStart(2, "0"); }
+function dur(ms) { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} h ${String(m).padStart(2, "0")}` : m < 10 ? `${m}:${String(s % 60).padStart(2, "0")} Min` : `${m} Min`; }
+function live(ms) { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${String(m).padStart(2, "0")}:${ss}`; }
+function note(where, what, app) { log.unshift({ t: hhmmss(now()), where, what, app }); log = log.slice(0, 7); }
+
+function start(p, where) {
+  if (S.laStart == null) S.laStart = now();
+  S.running = { pos: p, name: STEPS[p], start: now() }; S.chosen = null;
+  note(where, `Start ${STEPS[p]} → App wacht im Hintergrund auf, legt laufende Messung an, schreibt Schnappschuss`);
+}
+function stop(where, silent) {
+  const r = S.running; if (!r) return;
+  const d = now() - r.start; S.status[r.pos] = "erledigt"; S.dauer[r.pos] = d; S.running = null;
+  if (!silent) note(where, `Stopp → Messung ${r.name} (${dur(d)}) gespeichert`);
+  return r;
+}
+const A = {
+  start: w => { const p = nextPos(); if (p >= 0) start(p, w); },
+  startAt: (w, p) => start(p, w),
+  stop: w => stop(w),
+  weiter: w => { const r = stop(w, true); const n = nextAfter(r.pos) >= 0 ? nextAfter(r.pos) : nextPos(); note(w, `Weiter → Messung ${r.name} (${dur(now() - r.start)}) gespeichert` + (n >= 0 ? `, ${STEPS[n]} startet im selben Moment` : ", Kette erledigt")); if (n >= 0) start(n, null), log.splice(0, 1); },
+  skip: w => { const p = nextPos(); if (p < 0) return; S.status[p] = "übersprungen"; S.chosen = null; note(w, `Überspringen → ${STEPS[p]} übersprungen`); },
+  app: (w, what) => { note(w, `Öffnet die App: ${what}`, true); toast(`Öffnet die App: ${what}`); },
+};
+function act(name, where, arg) { A[name](where, arg); render(); }
+
+// ---------- Bausteine ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const B = (cls, label, a, where, arg) => `<button class="${cls}" data-a="${a}" data-w="${esc(where)}"${arg != null ? ` data-arg="${arg}"` : ""}>${label}</button>`;
+const T = start => `<span class="tm" data-start="${start}">${live(now() - start)}</span>`;
+function dots() {
+  const np = nextPos();
+  return `<div class="dots">${S.status.map((s, i) => `<span class="dot ${S.running?.pos === i ? "run" : s === "erledigt" ? "done" : s === "übersprungen" ? "skip" : i === np ? "next" : ""}"></span>`).join("")}</div>`;
+}
+const apps = n => Array.from({ length: n }, () => `<span class="app"></span>`).join("");
+
+// Kleines Widget (A, B)
+function wSmall(where) {
+  const z = zustand(), r = S.running, np = nextPos();
+  if (z === "keine") return `<div class="w"><span class="eyebrow">Heute</span><span class="nm">Keine Kette</span><span class="fill"></span><div class="row-end"><span class="sub">Antippen öffnet die App</span>${B("rb ghost", "Wählen", "app", where, "'Kette für heute wählen'")}</div></div>`;
+  if (z === "laeuft") return `<div class="w"><span class="eyebrow">Läuft</span><span class="nm">${r.name}</span><span class="fill"></span><div class="row-end">${T(r.start)}${B("rb run", "Stopp", "stop", where)}</div></div>`;
+  if (z === "erledigt") return `<div class="w"><span class="eyebrow">${S.kette}</span><span class="nm">Erledigt</span><span class="fill"></span><div class="row-end"><span class="sub">${doneCount()} von ${STEPS.length}</span>${B("rb ghost", "+", "app", where, "'Einschieben'")}</div></div>`;
+  return `<div class="w"><span class="eyebrow">Als Nächstes</span><span class="nm">${STEPS[np]}</span><span class="fill"></span><div class="row-end"><span class="sub">${doneCount()} von ${STEPS.length}</span>${B("rb", "Start", "start", where)}</div></div>`;
+}
+// Mittleres Widget B: Knopf + Infos + Weiter / Überspringen
+function wMediumB(where) {
+  const z = zustand(), r = S.running, np = nextPos();
+  if (z === "keine" || z === "erledigt") return `<div class="w m"><div class="m-wrap">${z === "keine" ? B("rb big ghost", "Wählen", "app", where, "'Kette für heute wählen'") : B("rb big ghost", "+", "app", where, "'Einschieben'")}<div class="info"><span class="eyebrow">${z === "keine" ? "Heute" : S.kette}</span><span class="nm">${z === "keine" ? "Keine Kette" : "Kette erledigt"}</span><span class="sub">${z === "keine" ? "Kette wählen oder spontan einschieben, beides in der App" : `${doneCount()} von ${STEPS.length} · Einschieben öffnet die App`}</span>${z === "erledigt" ? dots() : ""}</div></div></div>`;
+  const n = z === "laeuft" ? nextAfter(r.pos) : nextAfter(np);
+  const after = n >= 0 ? STEPS[n] : "Ende der Kette";
+  return `<div class="w m"><div class="m-wrap">${z === "laeuft" ? B("rb big run", "Stopp", "stop", where) : B("rb big", "Start", "start", where)}
+    <div class="info"><span class="eyebrow">${z === "laeuft" ? "Läuft" : "Als Nächstes"}</span><span class="nm">${z === "laeuft" ? r.name : STEPS[np]}</span>
+    ${z === "laeuft" ? T(r.start) : ""}${dots()}<span class="sub">Danach: ${after}</span>
+    <div class="acts">${z === "laeuft" ? (n >= 0 ? B("pill go", `Weiter › ${after}`, "weiter", where) : "") : B("pill", "Überspringen", "skip", where)}</div></div></div></div>`;
+}
+// Ketten-Liste (C)
+function chainRows(where, max) {
+  const np = nextPos();
+  let idx = STEPS.map((_, i) => i);
+  if (max) { const focus = S.running ? S.running.pos : Math.max(np, 0); let from = Math.max(0, Math.min(focus - 1, STEPS.length - max)); idx = idx.slice(from, from + max); }
+  return idx.map(i => {
+    const s = S.status[i], run = S.running?.pos === i;
+    const cls = run ? "run" : s === "erledigt" ? "done" : s === "übersprungen" ? "skip" : i === np ? "next" : "";
+    const right = run ? `${T(S.running.start)} ${B("mini run", "Stopp", "stop", where)}`
+      : s === "erledigt" ? `<span class="r">${dur(S.dauer[i] || 0)}</span>`
+      : s === "übersprungen" ? `<span class="r">übersprungen</span>`
+      : S.running ? `<span class="r"></span>` : B(i === np ? "mini" : "mini out", "Start", "startAt", where, i);
+    return `<div class="kr ${cls}"><span class="mk"></span><span class="t">${STEPS[i]}</span><span class="r">${right}</span></div>`;
+  }).join("");
+}
+function wChain(where, size) {
+  const z = zustand();
+  const cls = size === "m" ? "w m" : where.startsWith("Android") ? "w l3" : "w l";
+  if (z === "keine") return `<div class="${cls}"><span class="eyebrow">Heute</span><span class="nm">Keine Kette</span><span class="sub">Ohne Kette gibt es hier nichts zu starten.</span><span class="fill"></span><div class="foot">${B("pill go", "Kette wählen", "app", where, "'Kette für heute wählen'")}${B("pill", "+ Einschieben", "app", where, "'Einschieben'")}</div></div>`;
+  const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span class="eyebrow">${S.kette}</span><span class="sub">${doneCount()} von ${STEPS.length}</span></div>`;
+  const foot = size === "m" ? "" : `<div class="foot">${!S.running && nextPos() >= 0 ? B("pill", "Überspringen", "skip", where) : ""}${S.running && nextAfter(S.running.pos) >= 0 ? B("pill go", `Weiter › ${STEPS[nextAfter(S.running.pos)]}`, "weiter", where) : ""}${B("pill", "+ Einschieben", "app", where, "'Einschieben'")}</div>`;
+  return `<div class="${cls}">${head}<div class="kl">${chainRows(where, size === "m" ? 3 : 0)}</div>${foot}</div>`;
+}
+
+// Live Activity / Notification
+function laVisible(v) {
+  if (v === "fernbedienung") return !!S.kette && (S.running || (S.laStart != null && nextPos() >= 0));
+  return !!S.running;
+}
+function liveActivity(v, android) {
+  const where = android ? "Android-Notification" : "Live Activity";
+  if (!laVisible(v)) {
+    const why = v === "fernbedienung" ? (S.kette ? (nextPos() < 0 ? "Kette erledigt: Live Activity endet." : "Startet mit der ersten Messung des Tages.") : "Keine Kette heute.") : "Nur während einer Messung.";
+    return `<div class="none">Keine ${android ? "Notification" : "Live Activity"}<br>${why}</div>`;
+  }
+  const r = S.running, np = nextPos();
+  const hd = android ? `<div class="appln"><i></i>StoppApp · ${S.kette ?? "ohne Kette"}${r ? " · " + T(r.start).replace('class="tm"', 'class="tm" style="font-size:11px"') : ""}</div>`
+    : `<div class="hd"><span>StoppApp${v !== "knopf" && S.kette ? " · " + S.kette : ""}</span><span>${v !== "knopf" ? `${doneCount()} von ${STEPS.length}` : ""}</span></div>`;
+  let body, btns = [];
+  if (r) {
+    const n = nextAfter(r.pos);
+    body = `<div class="ln"><span class="nm">${r.name}</span>${android ? "" : T(r.start)}</div>`;
+    if (android) body += `<div class="sub" style="font-size:12px;color:var(--muted)">läuft seit ${hhmm(r.start)}</div>`;
+    btns.push(B("b stop", "Stopp", "stop", where));
+    if (v !== "knopf" && n >= 0) btns.push(B("b go", `Weiter › ${STEPS[n]}`, "weiter", where));
+  } else {
+    body = `<div class="ln"><span class="nm"><span class="${android ? "eyebrow" : ""}" style="display:block;font-size:11px;font-family:var(--body);opacity:.75">Als Nächstes</span>${STEPS[np]}</span></div>`;
+    btns.push(B("b go", "Start", "start", where), B("b", "Überspringen", "skip", where));
+  }
+  return `<div class="la">${hd}${body}${v !== "knopf" && !android ? dots().replace('class="dots"', 'class="dots" style="opacity:.9"') : ""}<div class="btns">${btns.join("")}</div></div>`;
+}
+function island(v) {
+  if (!laVisible(v)) return `<div class="island" style="min-width:70px"></div>`;
+  const r = S.running;
+  if (r) return `<div class="island"><span class="d"></span><span class="tx">${r.name}</span>${T(r.start)}</div>`;
+  return `<div class="island"><span class="d go"></span><span class="tx">Als Nächstes: ${STEPS[nextPos()]}</span></div>`;
+}
+
+// ---------- Varianten ----------
+function iosHome(v) {
+  const w = "iPhone-Widget";
+  if (v === "knopf") return `<div class="grid">${wSmall(w)}${apps(4)}${apps(8)}</div>`;
+  if (v === "weiter") return `<div class="grid">${wSmall(w)}${apps(4)}${wMediumB(w)}${apps(4)}</div>`;
+  return `<div class="grid">${wChain(w, "m")}${wChain(w, "l")}</div>`;
+}
+function andHome(v) {
+  const w = "Android-Widget";
+  if (v === "knopf") return `<div class="grid">${apps(4)}${wSmall(w)}${apps(4)}${apps(4)}</div>`;
+  if (v === "weiter") return `<div class="grid">${apps(4)}${wMediumB(w)}${apps(4)}</div>`;
+  return `<div class="grid">${apps(4)}${wChain(w, "l3")}</div>`;
+}
+const SIZES = { knopf: ["Klein (2×2)", "2×2"], weiter: ["Klein + Mittel", "4×2"], fernbedienung: ["Mittel + Groß", "4×3"] };
+function devices(v) {
+  const t = now(), d = new Date(t);
+  const date = d.toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" });
+  return `
+  <section class="device ios"><h2>iPhone <small>Widget: ${SIZES[v][0]}</small></h2><div class="screens">
+    <div class="scr"><span class="cap">Homescreen</span><div class="phone home">${iosHome(v)}</div></div>
+    <div class="scr"><span class="cap">Sperrbildschirm + Dynamic Island</span><div class="phone lock">${island(v)}<div class="big-time">${hhmm(t)}</div><div class="lock-date">${date}</div>${liveActivity(v, false)}</div></div>
+  </div></section>
+  <section class="device and"><h2>Android <small>Widget: ${SIZES[v][1]}</small></h2><div class="screens">
+    <div class="scr"><span class="cap">Homescreen</span><div class="phone home">${andHome(v)}</div></div>
+    <div class="scr"><span class="cap">Benachrichtigungen</span><div class="phone lock"><div class="dim">${hhmm(t)} · ${date}</div><div class="shade">${"<span></span>".repeat(5)}</div>${liveActivity(v, true)}<div class="dim">Weitere Benachrichtigungen …</div></div></div>
+  </div></section>`;
+}
+const NOTES = {
+  knopf: { h: "A · Nur der Knopf", li: [
+    "<b>Widget:</b> nur klein (2×2). Zeigt das nächste Ereignis bzw. das laufende mit Zeit. Ein Knopf: Start oder Stopp des Standardschritts.",
+    "<b>Live Activity und Notification:</b> nur solange eine Messung läuft. Name, Zeit, Stopp.",
+    "Überspringen, Einschieben, Nächstes wählen, Kette wählen: nur in der App. Wo nötig, öffnet ein Tipp die App.",
+    "Kleinster Schnappschuss, am wenigsten Swift/Kotlin-Code.",
+  ] },
+  weiter: { h: "B · Knopf + Weiter", li: [
+    "<b>Widget:</b> klein wie A, dazu mittel (4×2) mit Fortschrittspunkten, „Danach: …“ und einer Zweitaktion: <i>Überspringen</i> im Ruhezustand, <i>Weiter</i> während einer Messung.",
+    "<b>Weiter</b> = laufende Messung stoppen und den nächsten Schritt im selben Moment starten. Für Ketten, deren Ereignisse lückenlos aufeinander folgen (Duschen → Frühstück).",
+    "<b>Live Activity und Notification:</b> nur während einer Messung, mit Stopp und Weiter.",
+    "Einschieben und Nächstes wählen bleiben in der App.",
+  ] },
+  fernbedienung: { h: "C · Fernbedienung", li: [
+    "<b>Widget:</b> mittel (nächste 3 Schritte) und groß (ganze Kette). Jeden offenen Schritt direkt starten = Nächstes wählen + Start in einem Tipp. Dazu Überspringen und Weiter.",
+    "<b>Live Activity und Notification</b> bleiben den ganzen Tag: ab der ersten Messung bis die Kette erledigt ist, auch im Ruhezustand mit Start und Überspringen.",
+    "Achtung iOS: Eine Live Activity lebt höchstens 8 h (danach startet sie die App beim nächsten Öffnen neu). Ein ganzer Arbeitstag passt nicht hinein.",
+    "Achtung Android 14+: Dauerhafte Notifications lassen sich wegwischen. Die App legt sie beim nächsten Öffnen neu an.",
+    "Größter Schnappschuss: die ganze Tageskette mit Status.",
+  ] },
+};
+function snapshot(v) {
+  const z = zustand(), r = S.running, np = nextPos();
+  const s = { tag: "2026-11-06", zustand: z, kette: S.kette, laufend: r ? { ereignis: r.name, start: new Date(r.start).toISOString().slice(11, 19) + "Z" } : null, naechstes: np >= 0 && S.kette ? STEPS[np] : null };
+  if (v !== "knopf") { s.erledigt = doneCount(); s.schritte_gesamt = STEPS.length; s.punkte = S.status.map((x, i) => r?.pos === i ? "läuft" : x); s.danach = r ? (nextAfter(r.pos) >= 0 ? STEPS[nextAfter(r.pos)] : null) : (nextAfter(np) >= 0 ? STEPS[nextAfter(np)] : null); }
+  if (v === "fernbedienung") { delete s.punkte; s.schritte = STEPS.map((n, i) => ({ pos: i, ereignis: n, status: r?.pos === i ? "läuft" : S.status[i], dauer_s: S.dauer[i] ? Math.round(S.dauer[i] / 1000) : null })); }
+  return JSON.stringify(s, null, 1).replace(/\n\s+(?=[\]}])/g, " ").replace(/\{\n\s+/g, "{ ").replace(/,\n\s+(?="(status|dauer_s|ereignis)")/g, ", ");
+}
+
+// ---------- Rendern ----------
+let vi = Math.max(0, VARIANTS.findIndex(v => "#" + v.key === location.hash));
+const SCEN = [["keine", "Keine Kette"], ["bereit", "Bereit"], ["laeuft", "Läuft"], ["erledigt", "Kette erledigt"]];
+function render() {
+  const v = VARIANTS[vi].key;
+  document.getElementById("vl").textContent = VARIANTS[vi].label;
+  const z = zustand();
+  const shown = z === "laeuft" ? "laeuft" : z;
+  document.getElementById("scen").innerHTML = SCEN.map(([k, l]) => `<button data-scen="${k}" aria-pressed="${k === shown}">${l}</button>`).join("");
+  document.getElementById("clock").textContent = hhmm(now());
+  document.getElementById("devices").innerHTML = devices(v);
+  document.getElementById("notes").innerHTML = `<h3>${NOTES[v].h}</h3><ul>${NOTES[v].li.map(l => `<li>${l}</li>`).join("")}</ul>`;
+  document.getElementById("log").innerHTML = log.length ? log.map(l => `<div class="${l.app ? "app" : ""}"><span class="t">${l.t} · ${esc(l.where)}</span><br>${esc(l.what)}</div>`).join("") : `<div>Noch nichts. Tipp auf einen Knopf in Widget, Live Activity oder Notification.</div>`;
+  document.getElementById("snap").textContent = snapshot(v);
+}
+function setVariant(i) { vi = (i + VARIANTS.length) % VARIANTS.length; history.replaceState(null, "", "#" + VARIANTS[vi].key); render(); }
+let tt;
+function toast(msg) { const el = document.getElementById("toast"); el.textContent = msg; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => el.hidden = true, 1800); }
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.a) { let arg = b.dataset.arg; if (arg && arg.startsWith("'")) arg = arg.slice(1, -1); else if (arg != null) arg = +arg; act(b.dataset.a, b.dataset.w, arg); }
+  else if (b.dataset.scen) scenario(b.dataset.scen);
+  else if (b.id === "plus5") { offset += 5 * MIN; render(); }
+  else if (b.id === "prev") setVariant(vi - 1);
+  else if (b.id === "next") setVariant(vi + 1);
+});
+document.addEventListener("keydown", e => { if (e.target.closest("input,textarea,[contenteditable]")) return; if (e.key === "ArrowLeft") setVariant(vi - 1); if (e.key === "ArrowRight") setVariant(vi + 1); });
+addEventListener("hashchange", () => { const i = VARIANTS.findIndex(v => "#" + v.key === location.hash); if (i >= 0 && i !== vi) { vi = i; render(); } });
+setInterval(() => { document.querySelectorAll(".tm[data-start]").forEach(el => el.textContent = live(now() - +el.dataset.start)); document.getElementById("clock").textContent = hhmm(now()); }, 1000);
+scenario("laeuft");
+</script>
