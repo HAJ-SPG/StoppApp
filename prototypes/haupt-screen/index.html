@@ -1,0 +1,426 @@
+<title>StoppApp Haupt-Screen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYP – Wegwerf-Code. Frage: Wie sieht und verhält sich der Haupt-Screen mit dem runden Button?
+  Drei Varianten (Fokus / Zeitleiste / Ring), umschaltbar über die schwarze Leiste unten oder #fokus, #zeitleiste, #ring.
+  Zustand liegt nur im Speicher. Zeit lässt sich mit „+5 Min“ vorspulen.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: eine Handy-Spalte (max 420px), der Haupt-Screen füllt die Höhe; Prototyp-Leiste schwebt unten. */
+:root {
+  --paper: #EEF2EF;      /* Grund, leicht grünstichig */
+  --surface: #FFFFFF;
+  --ink: #14201B;
+  --muted: #5E6D66;
+  --line: #CED8D3;
+  --go: #1E7A57;         /* bereit / Start */
+  --go-soft: #D3EADF;
+  --stop: #C8442C;       /* läuft / Stopp */
+  --stop-soft: #F6DDD6;
+  --skip: #9AA6A0;
+  --proto-bg: #111;
+  --proto-fg: #F5F5F5;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; border-radius: 8px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+#phone { max-width: 420px; height: 100%; margin: 0 auto; display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 76px; position: relative; }
+#app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---------- gemeinsamer Kopf ---------- */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.date { font-family: var(--display); font-weight: 700; font-size: 20px; }
+.chip { border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+.chip.warn { border-color: var(--stop); color: var(--stop); }
+
+/* ---------- Variante A: Fokus ---------- */
+.a-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; color: var(--muted); }
+.a-name { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 9vw, 40px); line-height: 1.05; text-wrap: balance; }
+.a-btn { width: min(70vw, 280px); aspect-ratio: 1; max-width: 100%; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: var(--go); color: #fff; box-shadow: 0 0 0 12px var(--go-soft); transition: transform .12s, background .2s, box-shadow .2s; }
+.a-btn:active { transform: scale(.96); }
+.a-btn.run { background: var(--stop); box-shadow: 0 0 0 12px var(--stop-soft); }
+.a-btn.idle { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 2px var(--line) inset; }
+.a-btn .big { font-family: var(--display); font-weight: 800; font-size: 34px; }
+.a-btn .time { font-family: var(--mono); font-size: 30px; font-weight: 600; }
+.a-btn .small { font-size: 13px; opacity: .9; }
+.dots { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); }
+.dot.done { background: var(--go); border-color: var(--go); }
+.dot.skipped { background: var(--skip); border-color: var(--skip); opacity: .5; }
+.dot.run { background: var(--stop); border-color: var(--stop); }
+.dot.next { border-color: var(--go); }
+.a-sub { color: var(--muted); font-size: 14px; }
+.a-actions { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.txtbtn { padding: 10px 14px; border-radius: 10px; font-weight: 700; color: var(--muted); }
+.txtbtn:hover { background: var(--surface); color: var(--ink); }
+.txtbtn[disabled] { opacity: .35; pointer-events: none; }
+
+/* ---------- Variante B: Zeitleiste ---------- */
+.b-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.b-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.b-title { font-family: var(--display); font-size: 26px; font-weight: 800; }
+.b-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-block: 4px; }
+.row { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 11px 6px; border-radius: 12px; text-align: left; width: 100%; position: relative; }
+.row::before { content: ""; position: absolute; left: 16px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.row:first-child::before { top: 50%; } .row:last-child::before { bottom: 50%; }
+.row .mk { width: 22px; height: 22px; border-radius: 50%; background: var(--paper); border: 2px solid var(--line); z-index: 1; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.row .nm { font-weight: 700; min-width: 0; }
+.row .meta { color: var(--muted); font-size: 13px; text-align: right; }
+.row.done .mk { background: var(--go); border-color: var(--go); }
+.row.done .nm { color: var(--muted); font-weight: 400; }
+.row.skip .nm { text-decoration: line-through; color: var(--skip); font-weight: 400; }
+.row.skip .mk { border-style: dashed; }
+.row.extra .nm::after { content: " · eingeschoben"; color: var(--muted); font-weight: 400; font-size: 13px; }
+.row.run { background: var(--stop-soft); }
+.row.run .mk { background: var(--stop); border-color: var(--stop); }
+.row.run .meta { color: var(--stop); font-weight: 700; font-size: 15px; }
+.row.next { background: var(--go-soft); }
+.row.next .mk { border-color: var(--go); }
+.row.up { cursor: pointer; } .row.up:hover { background: var(--surface); }
+.row .tag { font-size: 12px; font-weight: 700; color: var(--go); text-transform: uppercase; letter-spacing: .08em; }
+.b-dock { display: flex; align-items: center; gap: 14px; background: var(--surface); border-radius: 24px; padding: 12px; border: 1px solid var(--line); }
+.b-btn { flex: none; width: 84px; height: 84px; border-radius: 50%; background: var(--go); color: #fff; font-family: var(--display); font-weight: 800; font-size: 17px; }
+.b-btn.run { background: var(--stop); }
+.b-btn:active { transform: scale(.95); }
+.b-dock .lbl { flex: 1; min-width: 0; }
+.b-dock .lbl b { display: block; font-family: var(--display); font-size: 20px; line-height: 1.15; }
+.b-dock .lbl span { color: var(--muted); font-size: 13px; }
+.b-tools { display: flex; flex-direction: column; gap: 4px; }
+.iconbtn { padding: 8px 10px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+
+/* ---------- Variante C: Ring ---------- */
+.c-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.c-ringwrap { position: relative; width: min(82vw, 330px); max-width: 100%; aspect-ratio: 1; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.c-ringwrap svg { width: 100%; height: 100%; display: block; }
+.c-core { position: absolute; inset: 15%; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--surface); box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+.c-core.run { background: var(--stop); color: #fff; }
+.c-core .t { font-family: var(--mono); font-weight: 600; font-size: 34px; }
+.c-core .n { font-family: var(--display); font-weight: 800; font-size: 22px; padding: 0 14px; line-height: 1.1; text-wrap: balance; }
+.c-core .h { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; opacity: .75; }
+.c-core:active { transform: scale(.97); }
+.c-carousel { display: flex; gap: 8px; align-items: center; justify-content: center; width: 100%; }
+.c-carousel .side { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); }
+.c-carousel .side b { display: block; color: var(--ink); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-hint { font-size: 12px; color: var(--muted); }
+.c-arrow { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--line); font-size: 18px; flex: none; }
+.c-arrow[disabled] { opacity: .3; pointer-events: none; }
+
+/* ---------- Bottom-Sheet ---------- */
+#scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 420px; background: var(--surface); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); max-height: 80%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.sheet h3 { margin: 0; font-family: var(--display); font-size: 21px; }
+.sheet p { margin: 0; color: var(--muted); font-size: 14px; }
+.opt { text-align: left; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.opt:hover { border-color: var(--go); }
+.opt small { color: var(--muted); font-weight: 400; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips .opt { flex: 1; justify-content: center; min-width: 64px; }
+.seg-title { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; color: var(--muted); margin-top: 6px; }
+
+/* ---------- Prototyp-Leiste (nicht Teil des Designs) ---------- */
+#proto { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 999px; display: flex; align-items: center; gap: 2px; padding: 4px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.3); max-width: calc(100% - 24px); }
+#proto button { color: var(--proto-fg); padding: 8px 10px; border-radius: 999px; white-space: nowrap; }
+#proto button:hover { background: rgba(127,127,127,.25); }
+#proto .vl { font-weight: 700; min-width: 112px; text-align: center; }
+#debug { position: fixed; z-index: 25; left: 50%; transform: translateX(-50%); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); width: min(420px, calc(100% - 24px));
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 14px; padding: 12px; font-size: 12px; max-height: 55%; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+#debug pre { margin: 0; font-family: var(--mono); font-size: 11px; white-space: pre-wrap; }
+#debug .row2 { display: flex; gap: 6px; flex-wrap: wrap; }
+#debug button { color: var(--proto-fg); border: 1px solid rgba(127,127,127,.5); border-radius: 8px; padding: 6px 8px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="phone"><div id="app"></div></div>
+<div id="sheetHost"></div>
+<div id="debug" hidden></div>
+<div id="proto">
+  <button id="pv" aria-label="Vorherige Variante">◀</button>
+  <span class="vl" id="vlabel"></span>
+  <button id="nv" aria-label="Nächste Variante">▶</button>
+  <button id="ff" title="Simulierte Zeit 5 Minuten vorspulen">+5 Min</button>
+  <button id="dbg" title="Zustand und Szenarien">Zustand</button>
+</div>
+
+<script>
+// ===================== Daten =====================
+const EVENTS = { zp:"Zähneputzen", fr:"Frühstück", af:"Arbeit fahren", ar:"Arbeiten", es:"Essen", hf:"Heimfahren", ek:"Einkaufen", sp:"Sport", du:"Duschen" };
+const CHAINS = {
+  arbeitstag: { name:"Arbeitstag", steps:["zp","fr","af","ar","es","ar","hf"] },
+  wochenende: { name:"Wochenende", steps:["zp","fr","sp","du","es"] },
+};
+let offset = 0; const now = () => Date.now() + offset;
+const MIN = 60000;
+
+// ===================== Zustand =====================
+// steps[i].status: pending | done | skipped | running
+let S;
+function load(chainKey) {
+  const c = chainKey ? CHAINS[chainKey] : null;
+  S = { chain: c ? c.name : null, steps: c ? c.steps.map(e => ({ ev:e, status:"pending" })) : [],
+        nextOverride: null, running: null, log: [] };
+}
+function scenario(k) {
+  offset = 0;
+  if (k === "start") load("arbeitstag");
+  if (k === "keine") load(null);
+  if (k === "mitte") {
+    load("arbeitstag"); const t = now();
+    rec(0, t-95*MIN, t-92*MIN); rec(1, t-90*MIN, t-78*MIN); S.steps[1].status="skipped"; S.log[1] = { kind:"skip", step:1, at:t-80*MIN };
+    rec(2, t-60*MIN, t-31*MIN); S.steps[3].status="running"; S.running = { ev:"ar", start:t-28*MIN, step:3 };
+  }
+  if (k === "fertig") {
+    load("wochenende"); const t = now();
+    S.steps.forEach((s,i) => rec(i, t-(300-i*50)*MIN, t-(290-i*50)*MIN)); S.steps[2].status="skipped";
+    S.log = S.log.filter(l => l.step !== 2); S.log.push({ kind:"skip", step:2, at:t-190*MIN });
+  }
+  render();
+}
+function rec(i, a, b) { S.steps[i].status = "done"; S.log.push({ kind:"m", ev:S.steps[i].ev, start:a, stop:b, step:i, chain:S.chain }); }
+
+function nextIdx() {
+  if (S.nextOverride != null && S.steps[S.nextOverride] && ["pending","skipped"].includes(S.steps[S.nextOverride].status)) return S.nextOverride;
+  const i = S.steps.findIndex(s => s.status === "pending"); return i < 0 ? null : i;
+}
+const finished = () => S.chain && nextIdx() == null && !S.running;
+
+function primary() {
+  if (!S.chain) return openSheet("chain");
+  if (S.running) return stop(0);
+  const i = nextIdx();
+  if (i == null) return openSheet("insert");
+  S.steps[i].status = "running"; S.nextOverride = null;
+  S.running = { ev:S.steps[i].ev, start:now(), step:i }; render();
+}
+function stop(minAgo) {
+  const r = S.running; const end = Math.max(r.start + MIN/60, now() - minAgo*MIN);
+  S.log.push({ kind:"m", ev:r.ev, start:r.start, stop:end, step:r.step, chain:S.chain });
+  if (r.step != null) S.steps[r.step].status = "done";
+  S.running = null; closeSheet(); render();
+}
+function startedAgo(min) { S.running.start = Math.min(S.running.start, now() - min*MIN); closeSheet(); render(); }
+function skip() { const i = nextIdx(); if (i == null || S.running) return; S.steps[i].status = "skipped"; S.log.push({ kind:"skip", step:i, at:now() }); S.nextOverride = null; render(); }
+function choose(i) { S.nextOverride = i; closeSheet(); render(); }
+function insert(ev) {
+  if (!S.running) { S.running = { ev, start:now(), step:null }; closeSheet(); render(); return; }
+}
+function pickChain(k) { load(k); closeSheet(); render(); }
+
+// ===================== Helfer =====================
+const fmtClock = t => new Date(t).toLocaleTimeString("de-AT", { hour:"2-digit", minute:"2-digit" });
+function fmtDur(ms) { const s = Math.max(0, Math.floor(ms/1000)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}` : `${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`; }
+const minDur = ms => { const m = Math.round(ms/MIN); return m < 1 ? "<1 Min" : m >= 60 ? `${Math.floor(m/60)} h ${m%60} Min` : `${m} Min`; };
+const dateStr = () => new Date(now()).toLocaleDateString("de-AT", { weekday:"short", day:"numeric", month:"short" });
+const elapsed = () => `<span class="num" data-elapsed>${fmtDur(now() - S.running.start)}</span>`;
+const doneCount = () => S.steps.filter(s => s.status === "done").length;
+const afterNext = () => { const n = nextIdx(); if (n == null) return null; const j = S.steps.findIndex((s,i) => i !== n && i > n && s.status === "pending"); return j < 0 ? null : j; };
+const chainChip = () => S.chain ? `<button class="chip" data-a="chain">${S.chain} ▾</button>` : `<button class="chip warn" data-a="chain">Keine Kette ▾</button>`;
+
+// ===================== Variante A: Fokus =====================
+function VariantA() {
+  let eyebrow, name, btn, sub = "";
+  if (!S.chain) { eyebrow = "Heute ist keine Kette geplant"; name = "Kette wählen"; btn = `<button class="a-btn idle" data-a="primary"><span class="big">Wählen</span></button>`; }
+  else if (S.running) { eyebrow = "Läuft"; name = EVENTS[S.running.ev];
+    btn = `<button class="a-btn run" data-a="primary"><span class="time">${elapsed()}</span><span class="big">Stopp</span><span class="small">seit ${fmtClock(S.running.start)}</span></button>`;
+    const n = nextIdx(); sub = n != null ? `Danach: ${EVENTS[S.steps[n].ev]}` : "Letztes Ereignis der Kette"; }
+  else if (finished()) { eyebrow = "Kette erledigt"; name = "Fertig für heute";
+    btn = `<button class="a-btn idle" data-a="primary"><span class="big">+</span><span class="small">Extra-Ereignis</span></button>`; }
+  else { const n = nextIdx(); eyebrow = "Als Nächstes"; name = EVENTS[S.steps[n].ev];
+    btn = `<button class="a-btn" data-a="primary"><span class="big">Start</span></button>`;
+    const j = afterNext(); sub = j != null ? `Danach: ${EVENTS[S.steps[j].ev]}` : "Letztes Ereignis der Kette"; }
+  const dots = S.steps.map((s,i) => `<span class="dot ${s.status==="running"?"run":s.status==="done"?"done":s.status==="skipped"?"skipped":(i===nextIdx()&&!S.running?"next":"")}"></span>`).join("");
+  const idle = S.chain && !S.running && !finished();
+  const actions = S.running
+    ? `<button class="txtbtn" data-a="correct">Zeit korrigieren</button>`
+    : `<button class="txtbtn" data-a="skip" ${idle?"":"disabled"}>Überspringen</button><button class="txtbtn" data-a="insert" ${S.chain?"":"disabled"}>Einschieben</button><button class="txtbtn" data-a="choose" ${idle?"":"disabled"}>Nächstes wählen</button>`;
+  return `<div class="top"><span class="date">${dateStr()}</span>${chainChip()}</div>
+    <div class="a-stage">
+      <div><div class="eyebrow">${eyebrow}</div><div class="a-name">${name}</div></div>
+      ${btn}
+      ${S.chain ? `<div><div class="dots">${dots}</div><div class="a-sub" style="margin-top:8px">${doneCount()} von ${S.steps.length} erledigt${sub ? " · " + sub : ""}</div></div>` : `<div class="a-sub">Weise im Kalender eine Kette zu oder wähle jetzt eine für heute.</div>`}
+    </div>
+    <div class="a-actions">${actions}</div>`;
+}
+
+// ===================== Variante B: Zeitleiste =====================
+function VariantB() {
+  if (!S.chain) return `<div class="b-wrap"><div class="b-head"><span class="b-title">${dateStr()}</span></div>
+    <div class="b-list" style="justify-content:center;text-align:center;gap:6px"><b>Für heute ist keine Kette geplant.</b><span style="color:var(--muted)">Wähle eine, um loszulegen.</span></div>
+    <div class="b-dock"><button class="b-btn" data-a="primary">Wählen</button><div class="lbl"><b>Kette wählen</b><span>Arbeitstag, Wochenende …</span></div></div></div>`;
+  const rows = [];
+  S.log.forEach(l => {
+    if (l.kind === "m") rows.push(`<div class="row done ${l.step==null?"extra":""}"><span class="mk">✓</span><span class="nm">${EVENTS[l.ev]}</span><span class="meta num">${fmtClock(l.start)}–${fmtClock(l.stop)} · ${minDur(l.stop-l.start)}</span></div>`);
+    else rows.push(`<div class="row skip"><span class="mk"></span><span class="nm">${EVENTS[S.steps[l.step].ev]}</span><span class="meta">übersprungen</span></div>`);
+  });
+  if (S.running) rows.push(`<div class="row run" id="runrow"><span class="mk"></span><span class="nm">${EVENTS[S.running.ev]}${S.running.step==null?" <small style='font-weight:400'>· eingeschoben</small>":""}</span><span class="meta">${elapsed()}</span></div>`);
+  const n = nextIdx();
+  const pend = S.steps.map((s,i) => ({ s, i })).filter(x => x.s.status === "pending" || (x.i === n));
+  pend.sort((a,b) => (a.i===n?-1:b.i===n?1:a.i-b.i));
+  pend.forEach(({ s, i }) => {
+    if (i === n && !S.running) rows.push(`<div class="row next"><span class="mk"></span><span class="nm">${EVENTS[s.ev]}<br><span class="tag">als Nächstes</span></span><button class="iconbtn" data-a="skip">Überspringen</button></div>`);
+    else rows.push(`<button class="row up" data-a="choosei" data-i="${i}" title="Als Nächstes setzen"><span class="mk"></span><span class="nm">${EVENTS[s.ev]}</span><span class="meta">${i===n?"danach":"antippen = als Nächstes"}</span></button>`);
+  });
+  if (!rows.length) rows.push(`<div class="row"><span class="mk"></span><span class="nm">Noch nichts gemessen</span><span></span></div>`);
+  let lblB, lblS, cls = "";
+  if (S.running) { lblB = `${EVENTS[S.running.ev]} stoppen`; lblS = `läuft seit ${fmtClock(S.running.start)}`; cls = "run"; }
+  else if (finished()) { lblB = "Kette erledigt"; lblS = "Button startet ein Extra-Ereignis"; }
+  else { lblB = `${EVENTS[S.steps[n].ev]} starten`; lblS = `${doneCount()} von ${S.steps.length} erledigt`; }
+  const tools = S.running ? `<button class="iconbtn" data-a="correct">Korrigieren</button>` : `<button class="iconbtn" data-a="insert">+ Einschieben</button>`;
+  return `<div class="b-wrap">
+    <div class="b-head"><span class="b-title">${dateStr()}</span>${chainChip()}</div>
+    <div class="b-list" id="blist">${rows.join("")}</div>
+    <div class="b-dock"><button class="b-btn ${cls}" data-a="primary">${S.running?"Stopp":finished()?"+":"Start"}</button>
+      <div class="lbl"><b>${lblB}</b><span>${lblS}</span></div><div class="b-tools">${tools}</div></div>
+  </div>`;
+}
+
+// ===================== Variante C: Ring =====================
+function ringSvg() {
+  const N = S.steps.length || 1, R = 46, gap = N > 1 ? 4 : 0, n = nextIdx();
+  let out = "";
+  S.steps.forEach((s,i) => {
+    const a0 = -90 + i*360/N + gap/2, a1 = -90 + (i+1)*360/N - gap/2;
+    const p = a => [50 + R*Math.cos(a*Math.PI/180), 50 + R*Math.sin(a*Math.PI/180)];
+    const [x0,y0] = p(a0), [x1,y1] = p(a1), large = a1 - a0 > 180 ? 1 : 0;
+    const col = s.status==="done" ? "var(--go)" : s.status==="running" ? "var(--stop)" : s.status==="skipped" ? "var(--skip)" : i===n ? "var(--go)" : "var(--line)";
+    const w = s.status==="running" || (i===n && !S.running) ? 7 : 5;
+    const dash = s.status==="skipped" ? `stroke-dasharray="1.5 2.5"` : i===n && !S.running ? `stroke-dasharray="3 2"` : "";
+    out += `<path d="M${x0} ${y0} A${R} ${R} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" ${dash}/>`;
+  });
+  if (!S.chain) out = `<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--line)" stroke-width="5" stroke-dasharray="2 3"/>`;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${out}</svg>`;
+}
+function VariantC() {
+  let core, cls = "";
+  if (!S.chain) core = `<span class="h">Keine Kette</span><span class="n">Wählen</span>`;
+  else if (S.running) { cls = "run"; core = `<span class="h">${EVENTS[S.running.ev]}</span><span class="t">${elapsed()}</span><span class="h">Tippen = Stopp</span>`; }
+  else if (finished()) core = `<span class="h">Kette erledigt</span><span class="n">+ Extra</span>`;
+  else core = `<span class="h">Start</span><span class="n">${EVENTS[S.steps[nextIdx()].ev]}</span>`;
+  // Karussell: vorheriges / nächstes wählbares Ereignis
+  const cand = S.steps.map((s,i) => ({ s, i })).filter(x => ["pending","skipped"].includes(x.s.status)).map(x => x.i);
+  const n = nextIdx(), pos = cand.indexOf(n);
+  const canPrev = !S.running && pos > 0, canNext = !S.running && pos >= 0 && pos < cand.length - 1;
+  const last = [...S.log].reverse().find(l => l.kind === "m");
+  const leftTxt = last ? `<b>${EVENTS[last.ev]}</b><span class="num">${minDur(last.stop-last.start)}</span>` : `<b>–</b>noch nichts`;
+  const nn = S.running ? n : afterNext();
+  const rightTxt = nn != null ? `<b>${EVENTS[S.steps[nn].ev]}</b>danach` : `<b>Ende</b>der Kette`;
+  return `<div class="top"><span class="date">${dateStr()}</span>${chainChip()}</div>
+    <div class="c-stage">
+      <div class="c-ringwrap">${ringSvg()}<button class="c-core ${cls}" id="core" data-a="primary">${core}</button></div>
+      ${S.chain ? `<div class="c-carousel">
+        <button class="c-arrow" data-a="cprev" ${canPrev?"":"disabled"} aria-label="Früheres Ereignis wählen">‹</button>
+        <div class="side" style="text-align:left">Zuletzt${leftTxt}</div>
+        <div class="side" style="text-align:right">${rightTxt}</div>
+        <button class="c-arrow" data-a="cnext" ${canNext?"":"disabled"} aria-label="Späteres Ereignis wählen">›</button>
+      </div>
+      <div class="c-hint">${S.running ? "Lang drücken: Zeit korrigieren" : "Pfeile: anderes Ereignis wählen · Lang drücken: Überspringen / Einschieben"}</div>` : ""}
+    </div>`;
+}
+function cShift(d) {
+  const cand = S.steps.map((s,i) => ({ s, i })).filter(x => ["pending","skipped"].includes(x.s.status)).map(x => x.i);
+  const pos = cand.indexOf(nextIdx()); const t = cand[pos + d]; if (t != null) { S.nextOverride = t; render(); }
+}
+
+// ===================== Sheets =====================
+let sheet = null;
+function openSheet(k) { sheet = k; renderSheet(); }
+function closeSheet() { sheet = null; renderSheet(); }
+function renderSheet() {
+  const host = document.getElementById("sheetHost");
+  if (!sheet) { host.innerHTML = ""; return; }
+  let h = "";
+  if (sheet === "chain") h = `<h3>Kette für heute</h3><p>Gilt nur für heute. Die Wochenregel bleibt unverändert.</p>` +
+    Object.entries(CHAINS).map(([k,c]) => `<button class="opt" data-a="pickchain" data-k="${k}">${c.name}<small>${c.steps.length} Schritte</small></button>`).join("");
+  if (sheet === "insert") h = `<h3>Ereignis einschieben</h3><p>Startet sofort. Die Kette macht danach dort weiter, wo sie war.</p>` +
+    Object.entries(EVENTS).map(([k,v]) => `<button class="opt" data-a="ins" data-k="${k}">${v}</button>`).join("") + `<button class="opt"><span>+ Neues Ereignis …</span></button>`;
+  if (sheet === "choose") { const n = nextIdx();
+    h = `<h3>Nächstes Ereignis wählen</h3><p>Der große Button startet dann dieses Ereignis.</p>` +
+      S.steps.map((s,i) => ["pending","skipped"].includes(s.status) ? `<button class="opt" data-a="choosei" data-i="${i}">${EVENTS[s.ev]}<small>${i===n?"aktuell als Nächstes":s.status==="skipped"?"übersprungen":`Schritt ${i+1}`}</small></button>` : "").join(""); }
+  if (sheet === "correct") h = `<h3>${EVENTS[S.running.ev]} korrigieren</h3><p>Läuft seit ${fmtClock(S.running.start)}.</p>
+    <div class="seg-title">Habe vergessen zu stoppen – gestoppt vor …</div>
+    <div class="chips">${[2,5,10,15,30].map(m => `<button class="opt num" data-a="stopago" data-m="${m}">${m} Min</button>`).join("")}</div>
+    <div class="seg-title">Habe zu spät gestartet – begonnen vor …</div>
+    <div class="chips">${[2,5,10,15,30].map(m => `<button class="opt num" data-a="startago" data-m="${m}">${m} Min</button>`).join("")}</div>
+    <div class="seg-title">Versehentlich gestartet</div><button class="opt" data-a="discard">Messung verwerfen</button>`;
+  if (sheet === "cmenu") { const idle = S.chain && !S.running && !finished();
+    h = `<h3>Mehr</h3>` + (idle ? `<button class="opt" data-a="skip">Überspringen<small>${EVENTS[S.steps[nextIdx()].ev]}</small></button>` : "") +
+      `<button class="opt" data-a="insert">Einschieben …</button>` + (idle ? `<button class="opt" data-a="choose">Nächstes wählen …</button>` : ""); }
+  host.innerHTML = `<div id="scrim" data-a="close"><div class="sheet" onclick="event.stopPropagation()">${h}<button class="txtbtn" data-a="close">Abbrechen</button></div></div>`;
+}
+
+// ===================== Render & Varianten =====================
+const VARIANTS = [ { key:"fokus", label:"A · Fokus", fn:VariantA }, { key:"zeitleiste", label:"B · Zeitleiste", fn:VariantB }, { key:"ring", label:"C · Ring", fn:VariantC } ];
+let vi = Math.max(0, VARIANTS.findIndex(v => "#" + v.key === location.hash));
+function render() {
+  document.getElementById("app").innerHTML = VARIANTS[vi].fn();
+  document.getElementById("vlabel").textContent = VARIANTS[vi].label;
+  const bl = document.getElementById("blist"); if (bl) bl.scrollTop = bl.scrollHeight;
+  renderDebug();
+}
+function setVariant(i) { vi = (i + VARIANTS.length) % VARIANTS.length; try { history.replaceState(null, "", "#" + VARIANTS[vi].key); } catch(e) {} closeSheet(); render(); }
+addEventListener("hashchange", () => { const i = VARIANTS.findIndex(v => "#" + v.key === location.hash); if (i >= 0 && i !== vi) { vi = i; render(); } });
+
+// Klicks
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-a]"); if (!t) return;
+  if (t.id === "core" && suppressClick) { suppressClick = false; return; }
+  const a = t.dataset.a;
+  ({ primary, skip, close: closeSheet, chain: () => openSheet("chain"), insert: () => openSheet("insert"), choose: () => openSheet("choose"),
+     correct: () => openSheet("correct"), cprev: () => cShift(-1), cnext: () => cShift(1),
+     choosei: () => choose(+t.dataset.i), pickchain: () => pickChain(t.dataset.k), ins: () => insert(t.dataset.k),
+     stopago: () => stop(+t.dataset.m), startago: () => startedAgo(+t.dataset.m),
+     discard: () => { const r = S.running; if (r.step != null) S.steps[r.step].status = "pending"; S.running = null; closeSheet(); render(); } }[a] || (() => {}))();
+  if (a === "skip" && sheet) closeSheet();
+});
+// Langes Drücken auf den Ring (Variante C)
+let lpTimer = null, suppressClick = false;
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#core") || !S.chain) return;
+  lpTimer = setTimeout(() => { suppressClick = true; openSheet(S.running ? "correct" : "cmenu"); }, 550); });
+["pointerup","pointercancel","pointerleave"].forEach(ev => document.addEventListener(ev, () => clearTimeout(lpTimer)));
+document.addEventListener("contextmenu", e => { if (e.target.closest("#core")) e.preventDefault(); });
+
+// Prototyp-Leiste
+document.getElementById("pv").onclick = () => setVariant(vi - 1);
+document.getElementById("nv").onclick = () => setVariant(vi + 1);
+document.getElementById("ff").onclick = () => { offset += 5*MIN; render(); };
+document.getElementById("dbg").onclick = () => { const d = document.getElementById("debug"); d.hidden = !d.hidden; renderDebug(); };
+document.addEventListener("keydown", e => { if (e.target.closest("input,textarea,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") setVariant(vi - 1); if (e.key === "ArrowRight") setVariant(vi + 1); if (e.key === "Escape") closeSheet(); });
+function renderDebug() {
+  const d = document.getElementById("debug"); if (d.hidden) return;
+  const view = { kette:S.chain, simulierteZeit:fmtClock(now()), alsNaechstes: nextIdx()!=null ? EVENTS[S.steps[nextIdx()].ev] : null,
+    schritte:S.steps.map((s,i) => `${i+1}. ${EVENTS[s.ev]} – ${s.status}`),
+    laeuft:S.running ? { ereignis:EVENTS[S.running.ev], seit:fmtClock(S.running.start), schritt:S.running.step==null?"eingeschoben":S.running.step+1 } : null,
+    messungen:S.log.filter(l => l.kind==="m").map(l => `${EVENTS[l.ev]} ${fmtClock(l.start)}–${fmtClock(l.stop)} (${l.chain})`) };
+  d.innerHTML = `<b>Szenario laden</b><div class="row2">
+    <button onclick="scenario('start')">Arbeitstag, Start</button><button onclick="scenario('mitte')">Mitten am Tag</button>
+    <button onclick="scenario('keine')">Keine Kette</button><button onclick="scenario('fertig')">Kette fertig</button></div>
+    <pre>${JSON.stringify(view, null, 2)}</pre>`;
+}
+setInterval(() => { if (!S.running) return; document.querySelectorAll("[data-elapsed]").forEach(el => el.textContent = fmtDur(now() - S.running.start)); }, 1000);
+
+scenario("mitte");
+</script>
