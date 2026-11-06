@@ -1,0 +1,434 @@
+<title>StoppApp Ketten-Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYP – Wegwerf-Code. Frage: Wie werden Ereignisse und Ereignisketten angelegt, bearbeitet und gelöscht?
+  Drei Varianten, umschaltbar über die schwarze Leiste unten oder #listen, #baukasten, #notiz:
+    A · Listen     – Tabs „Ketten | Ereignisse“, Kette öffnen, Schritte als Liste mit Ziehgriff, „+ Schritt“ öffnet eine Suche.
+    B · Baukasten  – Ein Screen: oben die Kette als Kette aus Chips, unten die Ereignis-Palette; antippen fügt ein.
+    C · Notiz      – Kette wie eine Notizliste tippen; unbekannte Namen werden als neues Ereignis angelegt.
+  Gemeinsam: Ereignis umbenennen/archivieren/wiederherstellen, Kette löschen mit Ersatz für Wochenregel und Ausnahmen.
+  Zustand nur im Speicher.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: eine Handy-Spalte (max 420px), Inhalt scrollt, Prototyp-Leiste schwebt unten. Tokens wie in den anderen StoppApp-Prototypen. */
+:root {
+  --paper: #EEF2EF; --surface: #FFFFFF; --ink: #14201B; --muted: #5E6D66; --line: #CED8D3;
+  --go: #1E7A57; --go-soft: #D3EADF; --stop: #C8442C; --stop-soft: #F6DDD6; --warn-soft: #F6ECD3; --warn: #8A5A00;
+  --k1: #2F64A8; --k1s: #DCE6F4; --k2: #A86A12; --k2s: #F4E6CF; --k3: #7E4A9E; --k3s: #EBDDF2;
+  --k4: #1E7A57; --k4s: #D3EADF; --k5: #B23A5B; --k5s: #F4DAE1; --k6: #4F6B73; --k6s: #DDE6E8;
+  --on-solid: #FFFFFF; --proto-bg: #111; --proto-fg: #F5F5F5;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --warn-soft: #3A2E14; --warn: #E6B85C;
+  --k1: #6FA2E8; --k1s: #1C2B40; --k2: #E0A54A; --k2s: #3A2C14; --k3: #BE8DDC; --k3s: #312238;
+  --k4: #3FBF8A; --k4s: #173A2C; --k5: #EC7C9A; --k5s: #3D1C26; --k6: #93B3BC; --k6s: #222E31;
+  --on-solid: #0F1714; --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --warn-soft: #3A2E14; --warn: #E6B85C;
+  --k1: #6FA2E8; --k1s: #1C2B40; --k2: #E0A54A; --k2s: #3A2C14; --k3: #BE8DDC; --k3s: #312238;
+  --k4: #3FBF8A; --k4s: #173A2C; --k5: #EC7C9A; --k5s: #3D1C26; --k6: #93B3BC; --k6s: #222E31;
+  --on-solid: #0F1714; --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; padding: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; border-radius: 8px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+.eyebrow { text-transform: uppercase; letter-spacing: .1em; font-size: 11px; font-weight: 700; color: var(--muted); }
+
+#phone { max-width: 420px; height: 100%; margin: 0 auto; display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 0; }
+#app { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 90px; }
+
+.k1 { --c: var(--k1); --cs: var(--k1s); } .k2 { --c: var(--k2); --cs: var(--k2s); } .k3 { --c: var(--k3); --cs: var(--k3s); }
+.k4 { --c: var(--k4); --cs: var(--k4s); } .k5 { --c: var(--k5); --cs: var(--k5s); } .k6 { --c: var(--k6); --cs: var(--k6s); }
+.swatch { width: 14px; height: 14px; border-radius: 5px; background: var(--c); flex: none; display: inline-block; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.title { font-family: var(--display); font-weight: 800; font-size: 26px; }
+.back { font-weight: 700; color: var(--muted); padding: 6px 0; }
+.pill { border: 1.5px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pill.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn { border-radius: 12px; padding: 11px 14px; font-weight: 700; background: var(--go); color: #fff; white-space: nowrap; text-align: center; }
+.btn.ghost { background: none; color: var(--ink); border: 1.5px solid var(--line); }
+.btn.danger { background: var(--stop); }
+.btn[disabled] { opacity: .4; pointer-events: none; }
+.addbtn { font-weight: 700; color: var(--go); padding: 12px; text-align: left; width: 100%; }
+.note { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+.list > * + * { border-top: 1px solid var(--line); }
+.li { display: flex; align-items: center; gap: 10px; padding: 12px; text-align: left; width: 100%; min-width: 0; }
+.li .grow { flex: 1; min-width: 0; }
+.li .grow b { display: block; }
+.li .grow span { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.li:hover { background: var(--paper); }
+.tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.tabs button { flex: 1; padding: 8px; border-radius: 999px; font-weight: 700; color: var(--muted); }
+.tabs button.on { background: var(--ink); color: var(--paper); }
+
+/* A · Schritte mit Ziehgriff */
+.step { display: grid; grid-template-columns: 28px 24px 1fr 36px; align-items: center; gap: 6px; padding: 8px 8px 8px 4px; background: var(--surface); }
+.step .h { cursor: grab; touch-action: none; color: var(--muted); font-size: 20px; text-align: center; user-select: none; padding: 8px 0; }
+.step .i { font-size: 12px; color: var(--muted); text-align: right; }
+.step .n { font-weight: 700; min-width: 0; }
+.step .n small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.step .x { width: 36px; height: 36px; border-radius: 10px; color: var(--muted); font-size: 18px; }
+.step .x:hover { background: var(--stop-soft); color: var(--stop); }
+.step.drag { background: var(--go-soft); box-shadow: 0 4px 16px rgba(0,0,0,.15); position: relative; z-index: 2; }
+.chainhead { display: flex; align-items: center; gap: 10px; }
+.chainhead h2 { font-family: var(--display); font-size: 26px; font-weight: 800; }
+.chainhead .swatch { width: 22px; height: 22px; border-radius: 8px; }
+
+/* B · Baukasten */
+.chaintabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.chaintabs .pill { display: inline-flex; gap: 6px; align-items: center; }
+.seq { display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; min-height: 80px; }
+.tok { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--cs); color: var(--ink); font-weight: 700; font-size: 14px; border: 2px solid transparent; }
+.tok .ix { font-family: var(--mono); font-size: 11px; color: var(--c); }
+.tok.sel { border-color: var(--c); background: var(--surface); }
+.arrow { color: var(--muted); font-size: 12px; }
+.caret { width: 3px; height: 30px; background: var(--go); border-radius: 2px; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.seltools { display: flex; gap: 6px; flex-wrap: wrap; }
+.seltools button { flex: 1; min-width: 70px; padding: 9px 8px; border-radius: 10px; border: 1.5px solid var(--line); font-weight: 700; font-size: 13px; }
+.palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.pchip { padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 700; font-size: 14px; }
+.pchip:hover { border-color: var(--go); }
+.pchip.new { border-style: dashed; color: var(--go); }
+.pchip.edit { border-color: var(--warn); }
+.pchip.arch { opacity: .55; text-decoration: line-through; }
+.inline-new { display: flex; gap: 6px; }
+.inline-new input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--go); background: var(--surface); font-weight: 700; }
+
+/* C · Notiz */
+.lines { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px 0; }
+.line { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 4px; padding: 2px 8px; }
+.line .i { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: right; padding-right: 4px; }
+.line input { width: 100%; min-width: 0; border: 0; border-bottom: 1.5px solid transparent; background: none; padding: 9px 4px; font-weight: 700; font-size: 16px; }
+.line input:focus { border-bottom-color: var(--go); outline: none; }
+.line .tag { font-size: 11px; font-weight: 700; color: var(--go); background: var(--go-soft); border-radius: 6px; padding: 2px 6px; margin-left: 4px; }
+.line .ops { display: flex; }
+.line .ops button { width: 32px; height: 34px; border-radius: 8px; color: var(--muted); }
+.line .ops button:hover { background: var(--paper); color: var(--ink); }
+.namein { font-family: var(--display); font-weight: 800; font-size: 24px; border: 0; border-bottom: 2px solid var(--line); background: none; padding: 4px 0; width: 100%; min-width: 0; }
+.namein:focus { outline: none; border-bottom-color: var(--go); }
+details.lib { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+details.lib summary { padding: 12px; font-weight: 700; cursor: pointer; }
+details.lib .list { border: 0; border-top: 1px solid var(--line); border-radius: 0 0 16px 16px; }
+
+/* Sheet */
+#scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 420px; background: var(--surface); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); max-height: 85%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.sheet h3 { font-family: var(--display); font-size: 21px; }
+.sheet p { margin: 0; color: var(--muted); font-size: 14px; }
+.opt { text-align: left; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); display: flex; align-items: center; gap: 10px; font-weight: 700; width: 100%; }
+.opt:hover { border-color: var(--go); } .opt.cur { border-color: var(--ink); }
+.opt small { margin-left: auto; color: var(--muted); font-weight: 400; text-align: right; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.field input { padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); font-weight: 700; font-size: 16px; color: var(--ink); width: 100%; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors button { width: 40px; height: 40px; border-radius: 12px; background: var(--c); border: 3px solid transparent; }
+.colors button.on { border-color: var(--ink); }
+.err { color: var(--stop); font-size: 13px; font-weight: 700; }
+.sheet-actions { display: flex; gap: 8px; } .sheet-actions .btn { flex: 1; }
+.uses { font-size: 13px; background: var(--paper); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 26; background: var(--ink); color: var(--paper); border-radius: 12px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+#toast button { color: var(--paper); font-weight: 700; text-decoration: underline; }
+
+/* Prototyp-Leiste (nicht Teil des Designs) */
+#proto { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 999px; display: flex; align-items: center; gap: 2px; padding: 4px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.3); max-width: calc(100% - 24px); }
+#proto button { color: var(--proto-fg); padding: 8px 10px; border-radius: 999px; white-space: nowrap; }
+#proto button:hover { background: rgba(127,127,127,.25); }
+#proto .vl { font-weight: 700; min-width: 120px; text-align: center; }
+#debug { position: fixed; z-index: 25; left: 50%; transform: translateX(-50%); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); width: min(420px, calc(100% - 24px));
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 14px; padding: 12px; max-height: 55%; overflow: auto; }
+#debug pre { margin: 0; font-family: var(--mono); font-size: 11px; white-space: pre-wrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="phone"><div id="app"></div></div>
+<div id="sheetHost"></div>
+<div id="toast" hidden></div>
+<div id="debug" hidden></div>
+<div id="proto">
+  <button id="pv" aria-label="Vorherige Variante">◀</button>
+  <span class="vl" id="vlabel"></span>
+  <button id="nv" aria-label="Nächste Variante">▶</button>
+  <button id="dbg">Zustand</button>
+</div>
+
+<script>
+// ===================== Daten =====================
+let EV, CH, RULE, EXC, nid = 100;
+const TODAY_CHAIN = "arbeitstag", TODAY_DONE = 3; // heute: Arbeitstag, 3 Schritte erledigt
+const WD = ["So","Mo","Di","Mi","Do","Fr","Sa"], WD_ORDER = [1,2,3,4,5,6,0];
+const COLORS = ["k1","k2","k3","k4","k5","k6"];
+function seed() {
+  EV = {
+    zp:{ name:"Zähneputzen", n:412 }, fr:{ name:"Frühstück", n:205 }, af:{ name:"Arbeit fahren", n:148 }, ar:{ name:"Arbeiten", n:301 },
+    es:{ name:"Essen", n:198 }, hf:{ name:"Heimfahren", n:146 }, ek:{ name:"Einkaufen", n:37 }, sp:{ name:"Sport", n:58 },
+    du:{ name:"Duschen", n:60 }, la:{ name:"Laufen", n:12, arch:true }, ze:{ name:"Zeitung lesen", n:0 },
+  };
+  CH = [
+    { id:"arbeitstag", name:"Arbeitstag", color:"k1", steps:["zp","fr","af","ar","es","ar","hf"] },
+    { id:"homeoffice", name:"Homeoffice", color:"k2", steps:["zp","fr","ar","es","ar","sp","du"] },
+    { id:"wochenende", name:"Wochenende", color:"k3", steps:["zp","fr","sp","du","es"] },
+  ];
+  RULE = { 1:"arbeitstag", 2:"arbeitstag", 3:"arbeitstag", 4:"arbeitstag", 5:"arbeitstag", 6:"wochenende", 0:"wochenende" };
+  EXC = { "2026-11-03":"homeoffice", "2026-11-12":"homeoffice", "2026-11-13":"homeoffice", "2026-10-29":"homeoffice" };
+}
+seed();
+const chain = id => CH.find(c => c.id === id);
+const activeEvents = () => Object.entries(EV).filter(([, e]) => !e.arch).sort((a, b) => a[1].name.localeCompare(b[1].name, "de"));
+const archivedEvents = () => Object.entries(EV).filter(([, e]) => e.arch);
+function ruleDays(id) { return WD_ORDER.filter(i => RULE[i] === id).map(i => WD[i]); }
+function excCount(id) { return Object.values(EXC).filter(c => c === id).length; }
+function usageText(id) {
+  const r = ruleDays(id), x = excCount(id), parts = [];
+  if (r.length) parts.push(r.length >= 3 && r.join(",") === "Mo,Di,Mi,Do,Fr" ? "Mo–Fr" : r.join(", "));
+  if (x) parts.push(`${x} ${x === 1 ? "Ausnahme" : "Ausnahmen"}`);
+  return parts.length ? parts.join(" · ") : "nicht zugewiesen";
+}
+function evUse(evId) { // [{chain, count}]
+  return CH.map(c => ({ c, n:c.steps.filter(s => s === evId).length })).filter(x => x.n);
+}
+function evUseText(evId) {
+  const u = evUse(evId), e = EV[evId];
+  const a = u.length ? u.map(x => `${x.c.name}${x.n > 1 ? " ×" + x.n : ""}`).join(", ") : "in keiner Kette";
+  return `${a} · ${e.n} Messungen`;
+}
+function findEventByName(name) { const n = name.trim().toLowerCase(); return Object.keys(EV).find(k => EV[k].name.toLowerCase() === n); }
+function createEvent(name) { const id = "e" + nid++; EV[id] = { name:name.trim(), n:0 }; return id; }
+const todayNote = c => c.id === TODAY_CHAIN ? `<div class="note">Heute läuft diese Kette (${TODAY_DONE} von ${c.steps.length} erledigt). Änderungen gelten ab morgen.</div>` : "";
+
+// Rückgängig
+let undoSnap = null, toastTimer;
+const snap = () => JSON.stringify({ EV, CH, RULE, EXC });
+function restore(j) { ({ EV, CH, RULE, EXC } = JSON.parse(j)); }
+function toast(msg, s) { undoSnap = s; const el = document.getElementById("toast");
+  el.innerHTML = `<span>${msg}</span>${s ? `<button data-a="undo">Rückgängig</button>` : ""}`; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, 5000); }
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+// ===================== Variante A: Listen =====================
+const A = { tab:"ketten", chain:null };
+function VariantA() {
+  if (A.chain) { const c = chain(A.chain); if (!c) { A.chain = null; return VariantA(); }
+    const counts = {}; c.steps.forEach(s => counts[s] = (counts[s] || 0) + 1);
+    return `<div class="top"><button class="back" data-a="a-back">‹ Ketten</button><button class="pill" data-a="chainmenu" data-id="${c.id}">⋯ Mehr</button></div>
+      <button class="chainhead ${c.color}" data-a="meta" data-id="${c.id}" title="Name und Farbe ändern"><span class="swatch"></span><h2>${esc(c.name)}</h2><span class="muted small">✎</span></button>
+      <div class="muted small">Gilt: ${usageText(c.id)}</div>
+      ${todayNote(c)}
+      <div class="list" id="steps">${c.steps.map((s, i) => `<div class="step" data-i="${i}"><span class="h" data-drag="${i}" aria-label="Ziehen zum Umsortieren">≡</span><span class="i num">${i+1}</span><span class="n">${esc(EV[s].name)}${counts[s] > 1 ? ` <small>· ${counts[s]}× in der Kette</small>` : ""}</span><button class="x" data-a="rmstep" data-i="${i}" aria-label="Schritt entfernen">×</button></div>`).join("")}
+        <button class="addbtn" data-a="pick" data-id="${c.id}">+ Schritt hinzufügen</button></div>
+      <div class="muted small">Ziehgriff ≡ zum Umsortieren. Ein Ereignis darf mehrfach vorkommen.</div>`; }
+  const tabs = `<div class="tabs"><button class="${A.tab === "ketten" ? "on" : ""}" data-a="a-tab" data-t="ketten">Ketten</button><button class="${A.tab === "ereignisse" ? "on" : ""}" data-a="a-tab" data-t="ereignisse">Ereignisse</button></div>`;
+  if (A.tab === "ketten") return `<div class="title">Ketten & Ereignisse</div>${tabs}
+    <div class="list">${CH.map(c => `<button class="li ${c.color}" data-a="a-open" data-id="${c.id}"><span class="swatch"></span><span class="grow"><b>${esc(c.name)}</b><span>${c.steps.length} Schritte · ${usageText(c.id)}</span><span>${c.steps.map(s => esc(EV[s].name)).join(" → ") || "noch leer"}</span></span><span class="muted">›</span></button>`).join("")}
+      <button class="addbtn" data-a="newchain">+ Neue Kette</button></div>`;
+  return `<div class="title">Ketten & Ereignisse</div>${tabs}${EventLibrary()}`;
+}
+function EventLibrary() {
+  const arch = archivedEvents();
+  return `<div class="list">${activeEvents().map(([k, e]) => `<button class="li" data-a="evedit" data-k="${k}"><span class="grow"><b>${esc(e.name)}</b><span>${evUseText(k)}</span></span><span class="muted">›</span></button>`).join("")}
+      <button class="addbtn" data-a="newevent">+ Neues Ereignis</button></div>
+    ${arch.length ? `<div class="eyebrow">Archiviert</div><div class="list">${arch.map(([k, e]) => `<div class="li"><span class="grow"><b class="muted">${esc(e.name)}</b><span>${e.n} Messungen · in Statistik weiter sichtbar</span></span><button class="pill" data-a="restore" data-k="${k}">Wiederherstellen</button></div>`).join("")}</div>` : ""}`;
+}
+// Ziehen zum Umsortieren
+let drag = null;
+document.addEventListener("pointerdown", e => { const h = e.target.closest("[data-drag]"); if (!h) return; e.preventDefault();
+  drag = { from:+h.dataset.drag, to:+h.dataset.drag, snap:snap() }; h.closest(".step").classList.add("drag"); });
+document.addEventListener("pointermove", e => { if (!drag) return;
+  const rows = [...document.querySelectorAll("#steps .step")]; let to = rows.length - 1;
+  for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (e.clientY < r.top + r.height/2) { to = i; break; } }
+  if (to !== drag.to) { const c = chain(A.chain); const [x] = c.steps.splice(drag.to, 1); c.steps.splice(to, 0, x); drag.to = to; render();
+    document.querySelectorAll("#steps .step")[to]?.classList.add("drag"); } });
+document.addEventListener("pointerup", () => { if (!drag) return; const d = drag; drag = null; render(); if (d.from !== d.to) toast(`Schritt ${d.from+1} → ${d.to+1}`, d.snap); });
+
+// ===================== Variante B: Baukasten =====================
+const B = { chain:"arbeitstag", sel:null, editLib:false, newOpen:false };
+function VariantB() {
+  const c = chain(B.chain) || CH[0]; if (!c) return `<div class="title">Ketten</div><button class="btn" data-a="newchain">+ Neue Kette</button>`;
+  B.chain = c.id;
+  const tabs = CH.map(x => `<button class="pill ${x.color} ${x.id === c.id ? "on" : ""}" data-a="b-chain" data-id="${x.id}"><span class="swatch"></span>${esc(x.name)}</button>`).join("") + `<button class="pill" data-a="newchain">+ Kette</button>`;
+  const seq = c.steps.map((s, i) => `${i ? `<span class="arrow">→</span>` : ""}<button class="tok ${c.color} ${B.sel === i ? "sel" : ""}" data-a="b-sel" data-i="${i}"><span class="ix">${i+1}</span>${esc(EV[s].name)}</button>${B.sel === i ? `<span class="caret" aria-hidden="true"></span>` : ""}`).join("");
+  const insertAt = B.sel == null ? "am Ende" : `nach Schritt ${B.sel + 1}`;
+  const tools = B.sel != null ? `<div class="seltools"><button data-a="b-move" data-d="-1" ${B.sel === 0 ? "disabled" : ""}>◀ früher</button><button data-a="b-move" data-d="1" ${B.sel === c.steps.length - 1 ? "disabled" : ""}>später ▶</button><button data-a="b-dup">Doppeln</button><button data-a="rmstep" data-i="${B.sel}" style="color:var(--stop)">Entfernen</button></div>` : "";
+  const pal = activeEvents().map(([k, e]) => `<button class="pchip ${B.editLib ? "edit" : ""}" data-a="${B.editLib ? "evedit" : "b-add"}" data-k="${k}">${esc(e.name)}</button>`).join("");
+  const arch = B.editLib ? archivedEvents().map(([k, e]) => `<button class="pchip arch" data-a="restore" data-k="${k}" title="Wiederherstellen">${esc(e.name)} ↺</button>`).join("") : "";
+  const nw = B.newOpen ? `<form class="inline-new" data-form="b-new"><input id="b-newname" placeholder="Name des Ereignisses" autocomplete="off"><button class="btn" type="submit">Anlegen</button></form>` : `<button class="pchip new" data-a="b-newopen">+ Neues Ereignis</button>`;
+  return `<div class="top"><span class="title">Ketten</span><button class="pill" data-a="chainmenu" data-id="${c.id}">⋯ ${esc(c.name)}</button></div>
+    <div class="chaintabs">${tabs}</div>
+    <div class="muted small">Gilt: ${usageText(c.id)}</div>
+    ${todayNote(c)}
+    <div class="seq" data-a="b-desel">${seq || `<span class="muted">Leer. Unten ein Ereignis antippen.</span>`}</div>
+    ${tools}
+    <div class="top"><div class="eyebrow">${B.editLib ? "Ereignisse bearbeiten · antippen" : `Ereignis antippen = einfügen ${insertAt}`}</div><button class="pill ${B.editLib ? "on" : ""}" data-a="b-editlib">${B.editLib ? "Fertig" : "Bearbeiten"}</button></div>
+    <div class="palette">${pal}${arch}${B.editLib ? "" : nw}</div>`;
+}
+
+// ===================== Variante C: Notiz =====================
+const C = { chain:"arbeitstag", pending:{} }; // pending: Zeilen-Index -> Text, der noch kein Ereignis ist
+function VariantC() {
+  const c = chain(C.chain) || CH[0]; if (!c) return `<button class="btn" data-a="newchain">+ Neue Kette</button>`; C.chain = c.id;
+  const opts = CH.map(x => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${esc(x.name)}</option>`).join("") + `<option value="__new">+ Neue Kette …</option>`;
+  const lines = c.steps.map((s, i) => `<div class="line"><span class="i">${i+1}.</span><span style="display:flex;align-items:center;min-width:0"><input id="c-l-${i}" list="evlist" value="${esc(EV[s].name)}" data-line="${i}" aria-label="Schritt ${i+1}"></span>
+      <span class="ops"><button data-a="c-move" data-i="${i}" data-d="-1" aria-label="nach oben">↑</button><button data-a="c-move" data-i="${i}" data-d="1" aria-label="nach unten">↓</button><button data-a="rmstep" data-i="${i}" aria-label="entfernen">×</button></span></div>`).join("");
+  return `<div class="top"><select id="c-chain" class="pill" aria-label="Kette">${opts}</select><button class="pill" data-a="chainmenu" data-id="${c.id}">⋯ Mehr</button></div>
+    <input class="namein" id="c-name" value="${esc(c.name)}" aria-label="Name der Kette">
+    <div class="muted small ${c.color}"><span class="swatch" style="vertical-align:-2px"></span> Gilt: ${usageText(c.id)} · <button data-a="meta" data-id="${c.id}" style="text-decoration:underline">Farbe</button></div>
+    ${todayNote(c)}
+    <div class="lines">${lines}<div class="line"><span class="i">${c.steps.length+1}.</span><input id="c-l-new" list="evlist" placeholder="Ereignis tippen, Enter = nächste Zeile" data-line="new"><span></span></div></div>
+    <datalist id="evlist">${activeEvents().map(([, e]) => `<option value="${esc(e.name)}">`).join("")}</datalist>
+    <div class="muted small">Ein neuer Name wird als neues Ereignis angelegt. Vorschläge kommen aus der Ereignis-Bibliothek.</div>
+    <details class="lib" ${C.libOpen ? "open" : ""} id="c-lib"><summary>Ereignis-Bibliothek (${activeEvents().length})</summary>${EventLibrary()}</details>`;
+}
+function cCommit(input) {
+  const c = chain(C.chain), v = input.value.trim(), line = input.dataset.line;
+  if (line === "new") { if (!v) return false; const sn = snap(); let id = findEventByName(v), created = false;
+    if (id && EV[id].arch) { EV[id].arch = false; } if (!id) { id = createEvent(v); created = true; }
+    c.steps.push(id); render(); document.getElementById("c-l-new")?.focus(); toast(created ? `„${v}“ als neues Ereignis angelegt` : `${EV[id].name} hinzugefügt`, sn); return true; }
+  const i = +line, cur = c.steps[i]; if (!v) { input.value = EV[cur].name; return false; }
+  if (EV[cur].name === v) return false;
+  const sn = snap(); let id = findEventByName(v), created = false; if (!id) { id = createEvent(v); created = true; } else if (EV[id].arch) EV[id].arch = false;
+  c.steps[i] = id; render(); toast(created ? `Schritt ${i+1}: neues Ereignis „${v}“` : `Schritt ${i+1} → ${EV[id].name}`, sn); return true;
+}
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset?.line != null) { e.preventDefault(); const was = e.target.dataset.line; cCommit(e.target);
+  if (was !== "new") document.getElementById("c-l-new")?.focus(); } });
+document.addEventListener("focusout", e => { if (e.target.dataset?.line != null && e.target.dataset.line !== "new") cCommit(e.target);
+  if (e.target.id === "c-name") renameChain(C.chain, e.target.value); });
+document.addEventListener("toggle", e => { if (e.target.id === "c-lib") C.libOpen = e.target.open; }, true);
+
+// ===================== Gemeinsame Aktionen =====================
+function renameChain(id, name) { const c = chain(id); name = name.trim(); if (!name || name === c.name) return;
+  const sn = snap(), old = c.name; c.name = name; render(); toast(`„${old}“ heißt jetzt „${name}“. Alte Messungen behalten „${old}“.`, sn); }
+function addStep(chainId, evId, at) { const c = chain(chainId), sn = snap(); const pos = at ?? c.steps.length; c.steps.splice(pos, 0, evId); return sn; }
+function rmStep(i) { const id = currentChainId(), c = chain(id), sn = snap(); const [ev] = c.steps.splice(i, 1);
+  if (VARIANTS[vi].key === "baukasten") B.sel = c.steps.length ? Math.min(i, c.steps.length - 1) : null;
+  render(); toast(`${EV[ev].name} aus ${c.name} entfernt`, sn); }
+const currentChainId = () => ({ listen:A.chain, baukasten:B.chain, notiz:C.chain })[VARIANTS[vi].key];
+
+// ===================== Sheets =====================
+let sheet = null;
+function openSheet(s) { sheet = s; renderSheet(); setTimeout(() => document.querySelector(".sheet [autofocus]")?.focus(), 0); }
+function closeSheet() { sheet = null; renderSheet(); }
+function renderSheet() {
+  const host = document.getElementById("sheetHost"); if (!sheet) { host.innerHTML = ""; return; }
+  const s = sheet; let h = "";
+  if (s.kind === "pick") { const q = (s.q || "").trim(), ql = q.toLowerCase();
+    const list = activeEvents().filter(([, e]) => e.name.toLowerCase().includes(ql));
+    const exact = q && findEventByName(q), archHit = exact && EV[exact].arch;
+    h = `<h3>Schritt hinzufügen</h3><label class="field">Suchen oder neu anlegen<input id="pick-q" value="${esc(q)}" placeholder="z. B. Lesen" autocomplete="off" autofocus></label>
+      ${q && !exact ? `<button class="opt" data-a="pick-new" style="border-color:var(--go);color:var(--go)">+ „${esc(q)}“ als neues Ereignis anlegen</button>` : ""}
+      ${archHit ? `<button class="opt" data-a="pick-ev" data-k="${exact}">${esc(EV[exact].name)}<small>archiviert · wiederherstellen und einfügen</small></button>` : ""}
+      ${list.map(([k, e]) => `<button class="opt" data-a="pick-ev" data-k="${k}">${esc(e.name)}<small>${evUse(k).find(x => x.c.id === s.chain) ? "schon in dieser Kette" : ""}</small></button>`).join("") || (q ? "" : `<p>Keine Ereignisse.</p>`)}`; }
+  if (s.kind === "evedit") { const e = EV[s.k], u = evUse(s.k);
+    h = `<h3>Ereignis bearbeiten</h3>
+      <label class="field">Name<input id="ev-name" value="${esc(e.name)}" autocomplete="off"></label>
+      <p>Der neue Name gilt überall, auch in alten Messungen und der Statistik.</p>
+      <div class="uses"><b>Verwendet</b><span>${u.length ? u.map(x => `${esc(x.c.name)}${x.n > 1 ? " · " + x.n + "×" : ""}`).join("<br>") : "in keiner Kette"}</span><span class="muted">${e.n} Messungen</span></div>
+      ${s.err ? `<div class="err">${s.err}</div>` : ""}
+      ${s.confirm ? `<div class="note">${e.n ? `Archivieren entfernt „${esc(e.name)}“${u.length ? " aus " + u.map(x => esc(x.c.name)).join(" und ") : ""}. Die ${e.n} Messungen bleiben erhalten, das Ereignis taucht in der Auswahl nicht mehr auf.` : `„${esc(e.name)}“ hat keine Messungen und wird endgültig gelöscht${u.length ? ", auch aus " + u.map(x => esc(x.c.name)).join(" und ") : ""}.`}</div>` : ""}
+      <div class="sheet-actions"><button class="btn ${s.confirm ? "danger" : "ghost"}" data-a="ev-remove">${s.confirm ? (e.n ? "Ja, archivieren" : "Ja, löschen") : (e.n ? "Archivieren" : "Löschen")}</button><button class="btn" data-a="ev-save">Speichern</button></div>`; }
+  if (s.kind === "newevent") h = `<h3>Neues Ereignis</h3><label class="field">Name<input id="ne-name" autocomplete="off" autofocus></label>${s.err ? `<div class="err">${s.err}</div>` : ""}<div class="sheet-actions"><button class="btn" data-a="ne-save">Anlegen</button></div>`;
+  if (s.kind === "meta" || s.kind === "newchain") { const c = s.kind === "meta" ? chain(s.id) : null, col = s.color ?? c?.color ?? COLORS[CH.length % COLORS.length];
+    h = `<h3>${c ? "Kette bearbeiten" : "Neue Kette"}</h3><label class="field">Name<input id="ch-name" value="${esc(s.name ?? c?.name ?? "")}" autocomplete="off" ${c ? "" : "autofocus"}></label>
+      <div class="field">Farbe im Kalender<div class="colors">${COLORS.map(k => `<button class="${k} ${k === col ? "on" : ""}" data-a="pickcolor" data-c="${k}" aria-label="Farbe ${k}"></button>`).join("")}</div></div>
+      ${c ? `<p>Alte Messungen behalten den Kettennamen, unter dem sie gemessen wurden.</p>` : `<p>Startet leer. Oder im Menü einer bestehenden Kette „Duplizieren“.</p>`}
+      ${s.err ? `<div class="err">${s.err}</div>` : ""}<div class="sheet-actions"><button class="btn" data-a="ch-save">${c ? "Speichern" : "Anlegen"}</button></div>`; }
+  if (s.kind === "chainmenu") { const c = chain(s.id);
+    h = `<h3>${esc(c.name)}</h3><button class="opt" data-a="meta" data-id="${c.id}">Name und Farbe</button><button class="opt" data-a="dup" data-id="${c.id}">Duplizieren<small>z. B. als Basis für eine ähnliche Kette</small></button><button class="opt" data-a="delchain" data-id="${c.id}" style="color:var(--stop)">Kette löschen</button>`; }
+  if (s.kind === "delchain") { const c = chain(s.id), r = ruleDays(c.id), x = excCount(c.id), used = r.length || x;
+    h = `<h3>„${esc(c.name)}“ löschen?</h3>
+      ${used ? `<div class="uses"><b>Wird verwendet</b>${r.length ? `<span>Wochenregel: ${r.join(", ")}</span>` : ""}${x ? `<span>${x} Tagesausnahmen</span>` : ""}</div><p>Diese Tage bekommen stattdessen:</p>
+        ${CH.filter(o => o.id !== c.id).map(o => `<button class="opt ${o.color}" data-a="delchain-go" data-id="${c.id}" data-r="${o.id}"><span class="swatch"></span>${esc(o.name)}</button>`).join("")}
+        <button class="opt" data-a="delchain-go" data-id="${c.id}" data-r="none">Keine Kette<small>Kette wird am Tag spontan gewählt</small></button>`
+      : `<p>Die Kette ist keinem Tag zugewiesen.</p><button class="btn danger" data-a="delchain-go" data-id="${c.id}" data-r="none">Löschen</button>`}
+      <p>Messungen bleiben erhalten und behalten den Namen „${esc(c.name)}“.</p>`; }
+  host.innerHTML = `<div id="scrim" data-a="close"><div class="sheet" onclick="event.stopPropagation()">${h}<button class="btn ghost" data-a="close">Abbrechen</button></div></div>`;
+  if (s.kind === "pick") { const inp = document.getElementById("pick-q"); inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);
+    inp.oninput = () => { sheet.q = inp.value; renderSheet(); }; inp.onkeydown = e => { if (e.key === "Enter" && inp.value.trim()) { const ex = findEventByName(inp.value); ex ? pickEv(ex) : pickNew(); } }; }
+}
+function pickEv(k) { const s = sheet, sn = snap(); if (EV[k].arch) EV[k].arch = false; addStep(s.chain, k, s.at); closeSheet(); render(); toast(`${EV[k].name} hinzugefügt`, sn); }
+function pickNew() { const s = sheet, sn = snap(), k = createEvent(s.q); addStep(s.chain, k, s.at); closeSheet(); render(); toast(`„${EV[k].name}“ angelegt und hinzugefügt`, sn); }
+
+// ===================== Render & Varianten =====================
+const VARIANTS = [ { key:"listen", label:"A · Listen", fn:VariantA }, { key:"baukasten", label:"B · Baukasten", fn:VariantB }, { key:"notiz", label:"C · Notiz", fn:VariantC } ];
+let vi = Math.max(0, VARIANTS.findIndex(v => "#" + v.key === location.hash));
+function render() { const app = document.getElementById("app"), t = app.scrollTop; app.innerHTML = VARIANTS[vi].fn(); app.scrollTop = t;
+  document.getElementById("vlabel").textContent = VARIANTS[vi].label; renderDebug(); }
+function setVariant(i) { vi = (i + VARIANTS.length) % VARIANTS.length; try { history.replaceState(null, "", "#" + VARIANTS[vi].key); } catch (e) {} closeSheet(); render(); }
+addEventListener("hashchange", () => { const i = VARIANTS.findIndex(v => "#" + v.key === location.hash); if (i >= 0 && i !== vi) setVariant(i); });
+
+document.addEventListener("submit", e => { e.preventDefault(); if (e.target.dataset.form === "b-new") { const v = document.getElementById("b-newname").value.trim(); if (!v) return;
+  const ex = findEventByName(v), sn = snap(), k = ex || createEvent(v); if (EV[k].arch) EV[k].arch = false; const c = chain(B.chain), at = B.sel == null ? c.steps.length : B.sel + 1;
+  c.steps.splice(at, 0, k); B.sel = at; B.newOpen = false; render(); toast(ex ? `${EV[k].name} eingefügt` : `„${v}“ angelegt und eingefügt`, sn); } });
+document.addEventListener("change", e => { if (e.target.id === "c-chain") { if (e.target.value === "__new") { openSheet({ kind:"newchain" }); e.target.value = C.chain; } else { C.chain = e.target.value; render(); } } });
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-a]"); if (!t) return; const a = t.dataset.a, d = t.dataset;
+  if (a === "b-desel" && e.target.closest(".tok")) return;
+  ({
+    close: closeSheet, undo: () => { if (!undoSnap) return; restore(undoSnap); undoSnap = null; document.getElementById("toast").hidden = true; closeSheet(); render(); },
+    "a-tab": () => { A.tab = d.t; render(); }, "a-open": () => { A.chain = d.id; render(); }, "a-back": () => { A.chain = null; render(); },
+    pick: () => openSheet({ kind:"pick", chain:d.id, q:"" }), "pick-ev": () => pickEv(d.k), "pick-new": pickNew,
+    rmstep: () => rmStep(+d.i),
+    evedit: () => openSheet({ kind:"evedit", k:d.k }), newevent: () => openSheet({ kind:"newevent" }),
+    "ne-save": () => { const v = document.getElementById("ne-name").value.trim(); if (!v) return openSheet({ kind:"newevent", err:"Name angeben." });
+      if (findEventByName(v)) return openSheet({ kind:"newevent", err:`„${v}“ gibt es schon.` }); const sn = snap(); createEvent(v); closeSheet(); render(); toast(`„${v}“ angelegt`, sn); },
+    "ev-save": () => { const v = document.getElementById("ev-name").value.trim(), k = sheet.k; if (!v) return openSheet({ ...sheet, err:"Name angeben." });
+      const ex = findEventByName(v); if (ex && ex !== k) return openSheet({ ...sheet, err:`„${v}“ gibt es schon. Zusammenlegen ist nicht vorgesehen.` });
+      const sn = snap(), old = EV[k].name; EV[k].name = v; closeSheet(); render(); if (old !== v) toast(`„${old}“ heißt jetzt „${v}“`, sn); },
+    "ev-remove": () => { if (!sheet.confirm) return openSheet({ ...sheet, confirm:true }); const k = sheet.k, e2 = EV[k], sn = snap();
+      CH.forEach(c => c.steps = c.steps.filter(s => s !== k)); if (e2.n) e2.arch = true; else delete EV[k]; closeSheet(); render(); toast(`„${e2.name}“ ${e2.n ? "archiviert" : "gelöscht"}`, sn); },
+    restore: () => { const sn = snap(); EV[d.k].arch = false; render(); toast(`„${EV[d.k].name}“ wiederhergestellt`, sn); },
+    newchain: () => openSheet({ kind:"newchain" }), meta: () => openSheet({ kind:"meta", id:d.id }),
+    pickcolor: () => { const nm = document.getElementById("ch-name").value; openSheet({ ...sheet, color:d.c, name:nm }); },
+    "ch-save": () => { const v = document.getElementById("ch-name").value.trim(); if (!v) return openSheet({ ...sheet, err:"Name angeben." });
+      if (CH.some(c => c.name.toLowerCase() === v.toLowerCase() && c.id !== sheet.id)) return openSheet({ ...sheet, err:`Eine Kette „${v}“ gibt es schon.` });
+      const sn = snap();
+      if (sheet.kind === "newchain") { const id = "c" + nid++; CH.push({ id, name:v, color:sheet.color ?? COLORS[CH.length % COLORS.length], steps:[] }); A.chain = id; B.chain = id; B.sel = null; C.chain = id; closeSheet(); render(); toast(`Kette „${v}“ angelegt`, sn); }
+      else { const c = chain(sheet.id), old = c.name; c.color = sheet.color ?? c.color; c.name = v; closeSheet(); render(); toast(old !== v ? `„${old}“ heißt jetzt „${v}“. Alte Messungen behalten „${old}“.` : "Gespeichert", sn); } },
+    chainmenu: () => openSheet({ kind:"chainmenu", id:d.id }),
+    dup: () => { const c = chain(d.id), sn = snap(), id = "c" + nid++; let n = c.name + " (Kopie)"; CH.push({ id, name:n, color:COLORS[CH.length % COLORS.length], steps:[...c.steps] });
+      A.chain = id; B.chain = id; B.sel = null; C.chain = id; closeSheet(); render(); toast(`„${n}“ angelegt`, sn); },
+    delchain: () => openSheet({ kind:"delchain", id:d.id }),
+    "delchain-go": () => { const id = d.id, r = d.r === "none" ? undefined : d.r, sn = snap(), c = chain(id);
+      WD_ORDER.forEach(i => { if (RULE[i] === id) { if (r) RULE[i] = r; else delete RULE[i]; } });
+      Object.keys(EXC).forEach(k => { if (EXC[k] === id) { if (r) EXC[k] = r; else EXC[k] = "none"; } });
+      CH = CH.filter(x => x.id !== id); A.chain = null; B.chain = CH[0]?.id; B.sel = null; C.chain = CH[0]?.id; closeSheet(); render(); toast(`„${c.name}“ gelöscht`, sn); },
+    "b-chain": () => { B.chain = d.id; B.sel = null; render(); }, "b-sel": () => { B.sel = B.sel === +d.i ? null : +d.i; render(); }, "b-desel": () => { B.sel = null; render(); },
+    "b-add": () => { const c = chain(B.chain), at = B.sel == null ? c.steps.length : B.sel + 1, sn = addStep(c.id, d.k, at); if (B.sel != null) B.sel = at; render(); toast(`${EV[d.k].name} eingefügt`, sn); },
+    "b-move": () => { const c = chain(B.chain), i = B.sel, j = i + +d.d, sn = snap(); [c.steps[i], c.steps[j]] = [c.steps[j], c.steps[i]]; B.sel = j; render(); },
+    "b-dup": () => { const c = chain(B.chain), sn = addStep(c.id, c.steps[B.sel], B.sel + 1); B.sel++; render(); toast("Schritt gedoppelt", sn); },
+    "b-editlib": () => { B.editLib = !B.editLib; B.newOpen = false; render(); }, "b-newopen": () => { B.newOpen = true; render(); document.getElementById("b-newname")?.focus(); },
+    "c-move": () => { const c = chain(C.chain), i = +d.i, j = i + +d.d; if (j < 0 || j >= c.steps.length) return; [c.steps[i], c.steps[j]] = [c.steps[j], c.steps[i]]; render(); },
+  }[a] || (() => {}))();
+});
+document.addEventListener("keydown", e => { if (e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") setVariant(vi - 1); if (e.key === "ArrowRight") setVariant(vi + 1); if (e.key === "Escape") closeSheet(); });
+document.getElementById("pv").onclick = () => setVariant(vi - 1);
+document.getElementById("nv").onclick = () => setVariant(vi + 1);
+document.getElementById("dbg").onclick = () => { const d = document.getElementById("debug"); d.hidden = !d.hidden; renderDebug(); };
+function renderDebug() { const d = document.getElementById("debug"); if (d.hidden) return;
+  d.innerHTML = `<pre>${esc(JSON.stringify({
+    ketten: CH.map(c => `${c.name}: ${c.steps.map(s => EV[s].name).join(" → ")}`),
+    ereignisse: Object.values(EV).map(e => `${e.name}${e.arch ? " (archiviert)" : ""} · ${e.n} Messungen`),
+    wochenregel: Object.fromEntries(WD_ORDER.map(i => [WD[i], RULE[i] ? chain(RULE[i])?.name : "Keine Kette"])),
+    tagesausnahmen: Object.fromEntries(Object.entries(EXC).map(([k, v]) => [k, v === "none" ? "Keine Kette" : chain(v)?.name])),
+  }, null, 2))}</pre>`; }
+render();
+</script>
