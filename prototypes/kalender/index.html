@@ -1,0 +1,552 @@
+<title>StoppApp Kalender</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYP – Wegwerf-Code. Frage: Wie sehen Kalender und Tagesprotokoll aus?
+  Drei Varianten, umschaltbar über die schwarze Leiste unten oder #raster, #liste, #pinsel:
+    A · Raster  – Monatsraster, Tag antippen öffnet ein Sheet, „Auswählen“ für mehrere Tage/Zeitraum, Protokoll als eigener Screen.
+    B · Liste   – Fortlaufende Tagesliste mit Wochenregel-Leiste oben, Zeitraum über ein Formular, Protokoll klappt inline auf.
+    C · Pinsel  – Kette aus einer Palette wählen und über Tage malen, Wochenregel ist die oberste Zeile, Protokoll unter dem Raster.
+  „Heute“ ist fest Fr, 6. Nov 2026, 10:12. Zustand nur im Speicher.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: eine Handy-Spalte (max 420px), Inhalt scrollt, Prototyp-Leiste schwebt unten. Tokens wie im Haupt-Screen-Prototyp, plus eine Farbe je Kette. */
+:root {
+  --paper: #EEF2EF; --surface: #FFFFFF; --ink: #14201B; --muted: #5E6D66; --line: #CED8D3;
+  --go: #1E7A57; --go-soft: #D3EADF; --stop: #C8442C; --stop-soft: #F6DDD6; --skip: #9AA6A0;
+  --c-arbeitstag: #2F64A8; --c-arbeitstag-soft: #DCE6F4;
+  --c-homeoffice: #A86A12; --c-homeoffice-soft: #F4E6CF;
+  --c-wochenende: #7E4A9E; --c-wochenende-soft: #EBDDF2;
+  --c-none: #7A8580; --c-none-soft: #E3E8E5;
+  --on-solid: #FFFFFF;
+  --proto-bg: #111; --proto-fg: #F5F5F5;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --c-arbeitstag: #6FA2E8; --c-arbeitstag-soft: #1C2B40; --c-homeoffice: #E0A54A; --c-homeoffice-soft: #3A2C14;
+  --c-wochenende: #BE8DDC; --c-wochenende-soft: #312238; --c-none: #8E9A94; --c-none-soft: #26302C; --on-solid: #0F1714;
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0F1714; --surface: #18221E; --ink: #E6EEEA; --muted: #93A39B; --line: #2C3A34;
+  --go: #3FBF8A; --go-soft: #173A2C; --stop: #F06A50; --stop-soft: #43211A; --skip: #5D6B65;
+  --c-arbeitstag: #6FA2E8; --c-arbeitstag-soft: #1C2B40; --c-homeoffice: #E0A54A; --c-homeoffice-soft: #3A2C14;
+  --c-wochenende: #BE8DDC; --c-wochenende-soft: #312238; --c-none: #8E9A94; --c-none-soft: #26302C; --on-solid: #0F1714;
+  --proto-bg: #F2F2F2; --proto-fg: #111; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; padding: 0; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; border-radius: 8px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+#phone { max-width: 420px; height: 100%; margin: 0 auto; display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 0; }
+#app { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 90px; }
+
+/* ---------- gemeinsame Teile ---------- */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.title { font-family: var(--display); font-weight: 800; font-size: 26px; }
+.monthnav { display: flex; align-items: center; gap: 4px; }
+.monthnav b { font-family: var(--display); font-size: 19px; min-width: 128px; text-align: center; }
+.round { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--line); font-size: 17px; flex: none; }
+.pill { border: 1.5px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pill.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.eyebrow { text-transform: uppercase; letter-spacing: .1em; font-size: 11px; font-weight: 700; color: var(--muted); }
+
+/* Kettenfarben: Klasse ch-<key> setzt --c / --cs */
+.ch-arbeitstag { --c: var(--c-arbeitstag); --cs: var(--c-arbeitstag-soft); }
+.ch-homeoffice { --c: var(--c-homeoffice); --cs: var(--c-homeoffice-soft); }
+.ch-wochenende { --c: var(--c-wochenende); --cs: var(--c-wochenende-soft); }
+.ch-none { --c: var(--c-none); --cs: var(--c-none-soft); }
+.swatch { width: 12px; height: 12px; border-radius: 4px; background: var(--c); flex: none; display: inline-block; }
+.chainchip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px; font-size: 13px; font-weight: 700; background: var(--cs); color: var(--c); }
+.chainchip.exc { background: var(--c); color: var(--on-solid); }
+.src { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+
+/* Monatsraster (A, C) */
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wd { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding-bottom: 2px; }
+.cell { position: relative; aspect-ratio: .78; max-width: 100%; border-radius: 10px; background: var(--cs); color: var(--c); display: flex; flex-direction: column; justify-content: space-between; padding: 5px 5px 6px; text-align: left; min-width: 0; border: 2px solid transparent; }
+.cell .d { font-family: var(--display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.cell .cn { font-size: 10.5px; font-weight: 700; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell.exc { background: var(--c); color: var(--on-solid); }
+.cell.exc .d { color: var(--on-solid); }
+.cell.exc::after { content: ""; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--on-solid); }
+.cell.out { opacity: .35; }
+.cell.today { border-color: var(--ink); }
+.cell.past .d::after { content: attr(data-sum); display: block; font-family: var(--mono); font-size: 9.5px; font-weight: 500; opacity: .75; }
+.cell.sel { outline: 3px solid var(--go); outline-offset: 1px; }
+.cell.sel::before { content: "✓"; position: absolute; bottom: 4px; right: 5px; font-size: 13px; font-weight: 800; color: var(--go); background: var(--surface); border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.lg-soft, .lg-solid { width: 18px; height: 14px; border-radius: 4px; display: inline-block; }
+.lg-soft { background: var(--c-arbeitstag-soft); } .lg-solid { background: var(--c-arbeitstag); }
+
+/* Aktionsleiste (A: Mehrfachauswahl) */
+.actionbar { position: sticky; bottom: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+.actionbar .grow { flex: 1; min-width: 0; }
+.btn { border-radius: 12px; padding: 11px 14px; font-weight: 700; background: var(--go); color: #fff; white-space: nowrap; }
+.btn.ghost { background: none; color: var(--ink); border: 1.5px solid var(--line); }
+.btn.danger { background: var(--stop); }
+.btn[disabled] { opacity: .4; pointer-events: none; }
+
+/* Tagesprotokoll */
+.proto { display: flex; flex-direction: column; gap: 10px; }
+.proto-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.proto-date { font-family: var(--display); font-weight: 800; font-size: 22px; }
+.proto-sum { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.proto-sum b { color: var(--ink); }
+.mlist { display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; border: 1px solid var(--line); overflow: hidden; }
+.m { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: center; padding: 12px; text-align: left; width: 100%; border-top: 1px solid var(--line); }
+.m:first-child { border-top: 0; }
+.m .t { font-size: 13px; color: var(--muted); }
+.m .n { font-weight: 700; min-width: 0; }
+.m .n small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.m .dur { font-size: 13px; }
+button.m:hover { background: var(--paper); }
+.m.run { background: var(--stop-soft); }
+.m.run .dur { color: var(--stop); font-weight: 700; }
+.gap { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--muted); background: repeating-linear-gradient(-45deg, transparent 0 6px, var(--paper) 6px 9px); }
+.gap button { font-weight: 700; color: var(--go); padding: 4px 6px; border-radius: 8px; }
+.addrow { padding: 12px; border-top: 1px solid var(--line); font-weight: 700; color: var(--go); text-align: left; width: 100%; }
+.empty { padding: 18px 12px; color: var(--muted); text-align: center; }
+.back { font-weight: 700; color: var(--muted); padding: 6px 0; align-self: flex-start; }
+
+/* B · Liste */
+.rulebar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.rulebar button { border-radius: 10px; padding: 6px 2px; background: var(--cs); color: var(--c); display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.rulebar .wdn { font-size: 11px; font-weight: 700; color: var(--ink); }
+.rulebar .cn { font-size: 10px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.week { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding: 10px 2px 4px; position: sticky; top: 0; background: var(--paper); z-index: 2; }
+.dayrow { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); text-align: left; width: 100%; }
+.dayrow.today { border-color: var(--ink); border-width: 2px; }
+.dayrow.out { opacity: .7; }
+.dayrow .dn { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.dayrow .dn b { font-family: var(--display); font-size: 22px; }
+.dayrow .dn span { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.dayrow .mid { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; min-width: 0; }
+.dayrow .right { font-size: 12px; color: var(--muted); text-align: right; }
+.daywrap { display: flex; flex-direction: column; gap: 8px; }
+.daywrap.open { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 0 0 12px; }
+.daywrap.open .dayrow { border: 0; border-radius: 16px 16px 0 0; }
+.daywrap.open .proto { padding: 0 10px; }
+.daywrap.open .mlist { background: var(--paper); }
+.dlist { display: flex; flex-direction: column; gap: 6px; }
+
+/* C · Pinsel */
+.rulerow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 6px; border: 1.5px dashed var(--line); border-radius: 14px; }
+.rulerow .cell { aspect-ratio: 1.2; }
+.rulerow .cell .d { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.paintable { touch-action: none; user-select: none; -webkit-user-select: none; }
+.palette { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 6px; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+.tool { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; min-width: 62px; border: 2px solid transparent; }
+.tool .sw { width: 28px; height: 28px; border-radius: 8px; background: var(--c); display: grid; place-items: center; color: var(--on-solid); font-size: 15px; }
+.tool .sw.eraser { background: repeating-linear-gradient(45deg, var(--c-arbeitstag-soft) 0 5px, var(--c-wochenende-soft) 5px 10px); color: var(--ink); border: 1.5px solid var(--line); }
+.tool .sw.eye { background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); }
+.tool.on { border-color: var(--ink); background: var(--paper); }
+.hint { font-size: 12px; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+.panel .mlist { background: var(--paper); }
+
+/* ---------- Bottom-Sheet ---------- */
+#scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 420px; background: var(--surface); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); max-height: 85%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.sheet h3 { font-family: var(--display); font-size: 21px; }
+.sheet p { margin: 0; color: var(--muted); font-size: 14px; }
+.opt { text-align: left; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); display: flex; align-items: center; gap: 10px; font-weight: 700; width: 100%; }
+.opt:hover { border-color: var(--go); }
+.opt.cur { border-color: var(--ink); }
+.opt small { margin-left: auto; color: var(--muted); font-weight: 400; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.field select, .field input { padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); font-weight: 700; font-size: 16px; color: var(--ink); width: 100%; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.err { color: var(--stop); font-size: 13px; font-weight: 700; }
+.wdpick { display: flex; gap: 4px; flex-wrap: wrap; }
+.wdpick label { flex: 1; min-width: 40px; text-align: center; padding: 8px 0; border: 1.5px solid var(--line); border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--ink); }
+.wdpick input { position: absolute; opacity: 0; pointer-events: none; }
+.wdpick label:has(input:checked) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.rulegrid { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: center; }
+.rulegrid select { padding: 9px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); font-weight: 700; }
+.sheet-actions { display: flex; gap: 8px; }
+.sheet-actions .btn { flex: 1; }
+
+/* Toast */
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 26; background: var(--ink); color: var(--paper); border-radius: 12px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+#toast button { color: var(--paper); font-weight: 700; text-decoration: underline; }
+
+/* ---------- Prototyp-Leiste (nicht Teil des Designs) ---------- */
+#proto { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 30;
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 999px; display: flex; align-items: center; gap: 2px; padding: 4px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.3); max-width: calc(100% - 24px); }
+#proto button { color: var(--proto-fg); padding: 8px 10px; border-radius: 999px; white-space: nowrap; }
+#proto button:hover { background: rgba(127,127,127,.25); }
+#proto .vl { font-weight: 700; min-width: 104px; text-align: center; }
+#debug { position: fixed; z-index: 25; left: 50%; transform: translateX(-50%); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); width: min(420px, calc(100% - 24px));
+  background: var(--proto-bg); color: var(--proto-fg); border-radius: 14px; padding: 12px; font-size: 12px; max-height: 55%; overflow: auto; }
+#debug pre { margin: 0; font-family: var(--mono); font-size: 11px; white-space: pre-wrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="phone"><div id="app"></div></div>
+<div id="sheetHost"></div>
+<div id="toast" hidden></div>
+<div id="debug" hidden></div>
+<div id="proto">
+  <button id="pv" aria-label="Vorherige Variante">◀</button>
+  <span class="vl" id="vlabel"></span>
+  <button id="nv" aria-label="Nächste Variante">▶</button>
+  <button id="dbg" title="Zustand anzeigen">Zustand</button>
+</div>
+
+<script>
+// ===================== Daten =====================
+const EVENTS = { zp:"Zähneputzen", fr:"Frühstück", af:"Arbeit fahren", ar:"Arbeiten", es:"Essen", hf:"Heimfahren", ek:"Einkaufen", sp:"Sport", du:"Duschen" };
+const BASE = { zp:3, fr:14, af:31, ar:225, es:34, hf:33, ek:22, sp:52, du:11 };
+const CHAINS = {
+  arbeitstag: { name:"Arbeitstag", short:"Arbeit", start:6*60+20, steps:["zp","fr","af","ar","es","ar","hf"] },
+  homeoffice: { name:"Homeoffice", short:"Home", start:7*60+5, steps:["zp","fr","ar","es","ar","sp","du"] },
+  wochenende: { name:"Wochenende", short:"WE", start:8*60+40, steps:["zp","fr","sp","du","es"] },
+};
+const NONE = "none";
+const chName = c => c === NONE ? "Keine Kette" : CHAINS[c].name;
+const chShort = c => c === NONE ? "–" : CHAINS[c].short;
+const WD = ["So","Mo","Di","Mi","Do","Fr","Sa"]; const WD_ORDER = [1,2,3,4,5,6,0];
+const WD_LONG = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+
+const pad = n => String(n).padStart(2, "0");
+const key = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d, 12); };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+const TODAY = new Date(2026, 10, 6, 12); const TK = key(TODAY); const NOW = 10*60 + 12;
+const isPast = k => k < TK; const isFuture = k => k > TK;
+
+// ===================== Zustand =====================
+let RULE = { 1:"arbeitstag", 2:"arbeitstag", 3:"arbeitstag", 4:"arbeitstag", 5:"arbeitstag", 6:"wochenende", 0:"wochenende" };
+let EXC = {}; // Datum -> Kette | "none"
+let MEAS = {}; // Datum -> [{ id, ev, start, stop|null, chain }]
+let nextId = 1;
+function tageskette(k) { return k in EXC ? { chain:EXC[k], src:"ausnahme" } : { chain:RULE[parse(k).getDay()] ?? NONE, src:"regel" }; }
+
+function seed() {
+  EXC = { "2026-10-29":"homeoffice", "2026-11-03":"homeoffice", "2026-11-12":"homeoffice", "2026-11-13":"homeoffice" };
+  for (let d = 23; d <= 27; d++) EXC[`2026-11-${d}`] = NONE; // Urlaub
+  let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  MEAS = {};
+  for (let d = addDays(TODAY, -20); key(d) <= TK; d = addDays(d, 1)) {
+    const k = key(d), { chain } = tageskette(k); if (chain === NONE) continue;
+    const C = CHAINS[chain]; let t = C.start + Math.round(rnd()*20) - 10; const list = [];
+    for (const ev of C.steps) {
+      if (rnd() < .07) continue;
+      if (rnd() < .08) { const e2 = t + 18; list.push({ id:nextId++, ev:"ek", start:t, stop:e2, chain:C.name }); t = e2 + 4; }
+      const dur = Math.max(1, Math.round(BASE[ev] * (.8 + rnd()*.4)));
+      if (k === TK && t > NOW) break;
+      const stop = k === TK && t + dur > NOW ? null : t + dur;
+      list.push({ id:nextId++, ev, start:t, stop, chain:C.name });
+      if (stop == null) break;
+      t = stop + Math.round(rnd() * (rnd() < .2 ? 25 : 9));
+    }
+    MEAS[k] = list;
+  }
+}
+seed();
+
+// Rückgängig
+let undoSnap = null;
+const snap = () => JSON.stringify({ RULE, EXC, MEAS });
+function restore(j) { const o = JSON.parse(j); RULE = o.RULE; EXC = o.EXC; MEAS = o.MEAS; }
+let toastTimer;
+function toast(msg, snapshot) {
+  undoSnap = snapshot; const el = document.getElementById("toast");
+  el.innerHTML = `<span>${msg}</span>${snapshot ? `<button data-a="undo">Rückgängig</button>` : ""}`; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, 5000);
+}
+
+// ===================== Helfer =====================
+const hm = m => `${pad(Math.floor(m/60) % 24)}:${pad(m % 60)}`;
+const dur = m => m >= 60 ? `${Math.floor(m/60)} h ${pad(m%60)}` : `${m} Min`;
+const fmtDay = k => parse(k).toLocaleDateString("de-AT", { weekday:"short", day:"numeric", month:"short" });
+const fmtDayLong = k => parse(k).toLocaleDateString("de-AT", { weekday:"long", day:"numeric", month:"long" });
+const sumDay = k => (MEAS[k] || []).reduce((a, m) => a + ((m.stop ?? NOW) - m.start), 0);
+const sorted = k => [...(MEAS[k] || [])].sort((a, b) => a.start - b.start);
+function chainChip(k, act = "daychain") {
+  const t = tageskette(k);
+  return `<button class="chainchip ch-${t.chain} ${t.src === "ausnahme" ? "exc" : ""}" data-a="${act}" data-k="${k}">${chName(t.chain)} <span class="src">· ${t.src === "ausnahme" ? "Ausnahme" : "Regel"}</span> ▾</button>`;
+}
+function monthDays(y, m) { // Mo-basierte Wochen inkl. Randtage
+  const first = new Date(y, m, 1, 12), lead = (first.getDay() + 6) % 7, out = [];
+  for (let d = addDays(first, -lead); ; d = addDays(d, 1)) { out.push(d); if (out.length % 7 === 0 && (d.getMonth() !== m || addDays(d,1).getMonth() !== m) && out.length >= 28 && addDays(d,1) > new Date(y, m+1, 0, 12)) break; }
+  return out;
+}
+const monthName = (y, m) => new Date(y, m, 1).toLocaleDateString("de-AT", { month:"long", year:"numeric" });
+function cell(d, y, m, extra = "") {
+  const k = key(d), t = tageskette(k), sum = sumDay(k);
+  const cls = ["cell", `ch-${t.chain}`, t.src === "ausnahme" ? "exc" : "", d.getMonth() !== m ? "out" : "", k === TK ? "today" : "", sum && !isFuture(k) ? "past" : "", extra].join(" ");
+  return `<button class="${cls}" data-cell="${k}" ${sum ? `data-sum="${dur(sum).replace(" Min","m")}"` : ""} aria-label="${fmtDayLong(k)}: ${chName(t.chain)}${t.src === "ausnahme" ? " (Ausnahme)" : ""}"><span class="d" data-sum="${sum ? dur(sum).replace(" Min","m") : ""}">${d.getDate()}</span><span class="cn">${chShort(t.chain)}</span></button>`;
+}
+const wdHeader = () => WD_ORDER.map(i => `<div class="wd">${WD[i]}</div>`).join("");
+
+// ===================== Tagesprotokoll (gemeinsam) =====================
+function Protocol(k, { showDate = true } = {}) {
+  const list = sorted(k), t = tageskette(k);
+  const total = sumDay(k);
+  let gaps = 0;
+  const rows = [];
+  list.forEach((m, i) => {
+    if (i > 0) { const prev = list[i-1]; const g = m.start - (prev.stop ?? m.start);
+      if (g >= 5) { gaps += g; rows.push(`<div class="gap"><span>Lücke · ${dur(g)}</span><button data-a="add" data-k="${k}" data-s="${prev.stop}" data-e="${m.start}">+ nachtragen</button></div>`); } }
+    const other = m.chain !== chName(t.chain) ? `<small>gemessen unter „${m.chain}“</small>` : "";
+    if (m.stop == null) rows.push(`<div class="m run"><span class="t num">${hm(m.start)} – …</span><span class="n">${EVENTS[m.ev]}<small>läuft · korrigieren auf dem Haupt-Screen</small></span><span class="dur num">${dur(NOW - m.start)}</span></div>`);
+    else rows.push(`<button class="m" data-a="edit" data-k="${k}" data-id="${m.id}"><span class="t num">${hm(m.start)} – ${hm(m.stop)}</span><span class="n">${EVENTS[m.ev]}${other}</span><span class="dur num">${dur(m.stop - m.start)}</span></button>`);
+  });
+  const body = isFuture(k)
+    ? `<div class="empty">Dieser Tag liegt in der Zukunft.</div>`
+    : (rows.length ? rows.join("") : `<div class="empty">An diesem Tag wurde nichts gemessen.</div>`) +
+      `<button class="addrow" data-a="add" data-k="${k}">+ Messung nachtragen</button>`;
+  return `<section class="proto">
+    <div class="proto-head">${showDate ? `<h2 class="proto-date">${fmtDayLong(k)}</h2>` : ""}${chainChip(k)}</div>
+    ${!isFuture(k) && list.length ? `<div class="proto-sum"><span><b class="num">${list.length}</b> Messungen</span><span>gemessen <b class="num">${dur(total)}</b></span><span>Lücken <b class="num">${dur(gaps)}</b></span></div>` : ""}
+    <div class="mlist">${body}</div>
+  </section>`;
+}
+
+// ===================== Variante A: Raster =====================
+const A = { y:2026, m:10, multi:false, range:false, sel:[], anchor:null, proto:null };
+function VariantA() {
+  if (A.proto) return `<button class="back" data-a="a-back">‹ Kalender</button>${Protocol(A.proto)}`;
+  const days = monthDays(A.y, A.m);
+  const grid = days.map(d => cell(d, A.y, A.m, A.sel.includes(key(d)) ? "sel" : "")).join("");
+  const bar = A.multi ? `<div class="actionbar"><div class="grow"><b>${A.sel.length} ${A.sel.length === 1 ? "Tag" : "Tage"}</b><div class="small muted">${A.range ? (A.anchor ? "Letzten Tag antippen" : "Ersten Tag antippen") : "Tage antippen"}</div></div>
+      <button class="btn" data-a="a-assign" ${A.sel.length ? "" : "disabled"}>Kette …</button></div>` : "";
+  return `<div class="top"><span class="title">Kalender</span><button class="pill" data-a="rule">Wochenregel</button></div>
+    <div class="top"><div class="monthnav"><button class="round" data-a="a-prev" aria-label="Vormonat">‹</button><b>${monthName(A.y, A.m)}</b><button class="round" data-a="a-next" aria-label="Nächster Monat">›</button></div>
+      <div style="display:flex;gap:4px"><button class="pill ${A.multi && !A.range ? "on" : ""}" data-a="a-multi">Auswählen</button><button class="pill ${A.range ? "on" : ""}" data-a="a-range">Von–bis</button></div></div>
+    <div class="grid">${wdHeader()}${grid}</div>
+    <div class="legend"><span><i class="lg-soft"></i>aus Wochenregel</span><span><i class="lg-solid"></i>Ausnahme</span><span>Rahmen = heute</span></div>
+    ${bar}`;
+}
+function aCell(k) {
+  if (!A.multi) return openSheet({ kind:"day", k });
+  if (A.range) {
+    if (!A.anchor) { A.anchor = k; A.sel = [k]; }
+    else { const [a, b] = [A.anchor, k].sort(); A.sel = []; for (let d = parse(a); key(d) <= b; d = addDays(d, 1)) A.sel.push(key(d)); A.anchor = null; }
+  } else A.sel = A.sel.includes(k) ? A.sel.filter(x => x !== k) : [...A.sel, k];
+  render();
+}
+
+// ===================== Variante B: Liste =====================
+const B = { open:TK, scrolled:false };
+function VariantB() {
+  const rule = WD_ORDER.map(i => `<button class="ch-${RULE[i] ?? NONE}" data-a="rule"><span class="wdn">${WD[i]}</span><span class="swatch"></span><span class="cn">${chShort(RULE[i] ?? NONE)}</span></button>`).join("");
+  const start = addDays(TODAY, -((TODAY.getDay() + 6) % 7) - 14), end = addDays(start, 7*8);
+  let html = "", wk = null;
+  for (let d = start; d < end; d = addDays(d, 1)) {
+    if ((d.getDay() + 6) % 7 === 0) { const e = addDays(d, 6); html += `<div class="week">KW ${kw(d)} · ${d.getDate()}. ${d.getMonth() !== e.getMonth() ? d.toLocaleDateString("de-AT",{month:"short"}) + " " : ""}– ${e.getDate()}. ${e.toLocaleDateString("de-AT",{month:"short"})}</div>`; }
+    const k = key(d), t = tageskette(k), list = MEAS[k] || [], open = B.open === k;
+    const right = isFuture(k) ? "" : k === TK ? `<b>heute</b><br><span class="num">${dur(sumDay(k))}</span>` : list.length ? `<span class="num">${list.length} · ${dur(sumDay(k))}</span>` : "nichts gemessen";
+    html += `<div class="daywrap ${open ? "open" : ""}" ${k === TK ? 'id="todayrow"' : ""}>
+      <div class="dayrow ${k === TK ? "today" : ""} ${isFuture(k) ? "out" : ""}" data-a="b-toggle" data-k="${k}" role="button" tabindex="0" aria-expanded="${open}">
+        <span class="dn"><span>${WD[d.getDay()]}</span><b>${d.getDate()}</b></span>
+        <span class="mid">${chainChip(k)}</span>
+        <span class="right">${right} ${isFuture(k) ? "" : open ? "▴" : "▾"}</span>
+      </div>${open ? Protocol(k, { showDate:false }) : ""}</div>`;
+  }
+  return `<div class="top"><span class="title">Kalender</span><button class="pill" data-a="range">Zeitraum festlegen …</button></div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Wochenregel · antippen zum Ändern</div><div class="rulebar">${rule}</div></div>
+    <div class="dlist">${html}</div>`;
+}
+function kw(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y0) / 864e5 + 1) / 7); }
+
+// ===================== Variante C: Pinsel =====================
+const C = { y:2026, m:10, tool:"view", view:TK };
+const TOOLS = [ { k:"view", label:"Ansehen" }, ...Object.keys(CHAINS).map(c => ({ k:c, label:CHAINS[c].name })), { k:NONE, label:"Keine" }, { k:"erase", label:"Regel" } ];
+function VariantC() {
+  const days = monthDays(C.y, C.m);
+  const rulerow = WD_ORDER.map(i => { const c = RULE[i] ?? NONE; return `<button class="cell ch-${c}" data-rule="${i}"><span class="d">${WD[i]}</span><span class="cn">${chShort(c)}</span></button>`; }).join("");
+  const grid = days.map(d => cell(d, C.y, C.m, C.tool === "view" && C.view === key(d) ? "sel" : "")).join("");
+  const tools = TOOLS.map(t => {
+    const sw = t.k === "view" ? `<span class="sw eye">◉</span>` : t.k === "erase" ? `<span class="sw eraser">↺</span>` : `<span class="sw"></span>`;
+    return `<button class="tool ${C.tool === t.k ? "on" : ""} ${t.k !== "view" && t.k !== "erase" ? "ch-" + t.k : ""}" data-a="c-tool" data-k="${t.k}">${sw}${t.label}</button>`; }).join("");
+  const hint = C.tool === "view" ? "Tag antippen zeigt sein Protokoll. Werkzeug wählen und über Tage wischen, um eine Kette zu malen."
+    : C.tool === "erase" ? "Über Tage wischen entfernt Ausnahmen. Es gilt wieder die Wochenregel."
+    : `Über Tage wischen setzt „${chName(C.tool)}“ als Ausnahme. Auf die Wochenregel-Zeile malen ändert die Regel.`;
+  return `<div class="top"><span class="title">Kalender</span><div class="monthnav"><button class="round" data-a="c-prev" aria-label="Vormonat">‹</button><b>${monthName(C.y, C.m)}</b><button class="round" data-a="c-next" aria-label="Nächster Monat">›</button></div></div>
+    <div class="paintable" id="paintzone" style="display:flex;flex-direction:column;gap:10px">
+      <div><div class="eyebrow" style="margin-bottom:6px">Wochenregel</div><div class="rulerow">${rulerow}</div></div>
+      <div class="grid">${wdHeader()}${grid}</div>
+    </div>
+    <div class="hint">${hint}</div>
+    ${C.tool === "view" && C.view ? `<div class="panel">${Protocol(C.view)}</div>` : ""}
+    <div class="palette" role="toolbar" aria-label="Werkzeug">${tools}</div>`;
+}
+// Malen per Ziehen
+let stroke = null;
+function paintAt(x, y) {
+  const el = document.elementFromPoint(x, y); if (!el) return;
+  const c = el.closest("[data-cell],[data-rule]"); if (!c || !stroke) return;
+  const id = c.dataset.cell ?? "r" + c.dataset.rule; if (stroke.done.has(id)) return; stroke.done.add(id);
+  if (c.dataset.rule != null) { if (C.tool === "erase") return; RULE[c.dataset.rule] = C.tool; stroke.rule++; }
+  else { const k = c.dataset.cell; if (C.tool === "erase") delete EXC[k]; else EXC[k] = C.tool; stroke.days++; }
+  render();
+}
+document.addEventListener("pointerdown", e => {
+  if (VARIANTS[vi].key !== "pinsel" || C.tool === "view") return;
+  if (!e.target.closest("#paintzone [data-cell], #paintzone [data-rule]")) return;
+  e.preventDefault(); stroke = { snap:snap(), done:new Set(), days:0, rule:0 }; paintAt(e.clientX, e.clientY);
+});
+document.addEventListener("pointermove", e => { if (stroke) paintAt(e.clientX, e.clientY); });
+document.addEventListener("pointerup", () => {
+  if (!stroke) return; const s = stroke; stroke = null; suppress = true; setTimeout(() => suppress = false, 50);
+  const parts = []; if (s.days) parts.push(`${s.days} ${s.days === 1 ? "Tag" : "Tage"} ${C.tool === "erase" ? "auf Wochenregel zurückgesetzt" : "→ " + chName(C.tool)}`);
+  if (s.rule) parts.push(`Wochenregel: ${s.rule} ${s.rule === 1 ? "Wochentag" : "Wochentage"} → ${chName(C.tool)}`);
+  if (parts.length) toast(parts.join(" · "), s.snap);
+});
+let suppress = false;
+
+// ===================== Sheets =====================
+let sheet = null;
+function openSheet(s) { sheet = s; renderSheet(); }
+function closeSheet() { sheet = null; renderSheet(); }
+function chainOptions(keys) {
+  const cur = keys.length === 1 ? tageskette(keys[0]) : null;
+  const hasExc = keys.some(k => k in EXC);
+  return [...Object.keys(CHAINS), NONE].map(c => `<button class="opt ch-${c} ${cur && cur.src === "ausnahme" && cur.chain === c ? "cur" : ""}" data-a="setchain" data-c="${c}"><span class="swatch"></span>${chName(c)}<small>${cur && cur.chain === c ? (cur.src === "ausnahme" ? "Ausnahme" : "Wochenregel") : ""}</small></button>`).join("")
+    + (hasExc ? `<button class="opt" data-a="setchain" data-c="__rule">↺ Wochenregel verwenden<small>Ausnahme entfernen</small></button>` : "");
+}
+function renderSheet() {
+  const host = document.getElementById("sheetHost");
+  if (!sheet) { host.innerHTML = ""; return; }
+  let h = "";
+  const s = sheet;
+  if (s.kind === "day") { const t = tageskette(s.k), list = MEAS[s.k] || [];
+    h = `<h3>${fmtDayLong(s.k)}</h3><p>${t.src === "ausnahme" ? `Ausnahme. Laut Wochenregel wäre es „${chName(RULE[parse(s.k).getDay()] ?? NONE)}“.` : `Aus der Wochenregel (${WD_LONG[parse(s.k).getDay()]}).`}</p>
+      ${!isFuture(s.k) ? `<button class="opt" data-a="a-open" data-k="${s.k}">Tagesprotokoll öffnen<small>${list.length} Messungen · ${dur(sumDay(s.k))}</small></button>` : ""}
+      <div class="eyebrow" style="margin-top:6px">Kette für diesen Tag</div>${chainOptions([s.k])}
+      ${!isFuture(s.k) && list.length ? `<p class="small">Bestehende Messungen behalten den Kettennamen, unter dem sie gemessen wurden.</p>` : ""}`; }
+  if (s.kind === "chain") { const keys = s.keys;
+    h = `<h3>${keys.length === 1 ? fmtDayLong(keys[0]) : `Kette für ${keys.length} Tage`}</h3>
+      <p>${keys.length === 1 ? "Gilt nur für diesen Tag und überschreibt die Wochenregel." : `${fmtDay(keys[0])} bis ${fmtDay(keys[keys.length-1])}. Überschreibt die Wochenregel an diesen Tagen.`}</p>${chainOptions(keys)}`; }
+  if (s.kind === "rule") {
+    h = `<h3>Wochenregel</h3><p>Welche Kette gilt standardmäßig an welchem Wochentag. Ausnahmen bleiben bestehen.</p>
+      <div class="rulegrid">${WD_ORDER.map(i => `<label for="r-${i}"><b>${WD_LONG[i]}</b></label><select id="r-${i}" data-rule-sel="${i}">${[...Object.keys(CHAINS), NONE].map(c => `<option value="${c}" ${(RULE[i] ?? NONE) === c ? "selected" : ""}>${chName(c)}</option>`).join("")}</select>`).join("")}</div>`; }
+  if (s.kind === "range") {
+    h = `<h3>Zeitraum festlegen</h3><p>Setzt eine Ausnahme für alle gewählten Tage im Zeitraum.</p>
+      <div class="row2"><label class="field">Von<input type="date" id="g-from" value="${s.from ?? "2026-11-23"}"></label><label class="field">Bis<input type="date" id="g-to" value="${s.to ?? "2026-11-27"}"></label></div>
+      <div class="field">Nur an<div class="wdpick">${WD_ORDER.map(i => `<label><input type="checkbox" id="g-wd-${i}" value="${i}" checked>${WD[i]}</label>`).join("")}</div></div>
+      <label class="field">Kette<select id="g-chain">${[...Object.keys(CHAINS), NONE].map(c => `<option value="${c}">${chName(c)}</option>`).join("")}<option value="__rule">Wochenregel (Ausnahmen entfernen)</option></select></label>
+      ${s.err ? `<div class="err">${s.err}</div>` : ""}
+      <div class="sheet-actions"><button class="btn" data-a="range-apply">Übernehmen</button></div>`; }
+  if (s.kind === "meas") { const m = s.id ? MEAS[s.k].find(x => x.id === s.id) : null;
+    const ev = s.ev ?? m?.ev ?? "ek", st = s.st ?? (m ? hm(m.start) : s.s != null ? hm(+s.s) : ""), sp = s.sp ?? (m ? hm(m.stop) : s.e != null ? hm(+s.e) : "");
+    h = `<h3>${m ? "Messung bearbeiten" : "Messung nachtragen"}</h3><p>${fmtDayLong(s.k)}${m && m.chain !== chName(tageskette(s.k).chain) ? ` · gemessen unter „${m.chain}“` : ""}</p>
+      <label class="field">Ereignis<select id="f-ev">${Object.entries(EVENTS).map(([k, v]) => `<option value="${k}" ${k === ev ? "selected" : ""}>${v}</option>`).join("")}<option value="__new">+ Neues Ereignis …</option></select></label>
+      <div class="row2"><label class="field">Start<input type="time" id="f-start" value="${st}"></label><label class="field">Stopp<input type="time" id="f-stop" value="${sp}"></label></div>
+      ${s.err ? `<div class="err">${s.err}</div>` : ""}
+      <div class="sheet-actions">${m ? `<button class="btn ${s.confirmDel ? "danger" : "ghost"}" data-a="del">${s.confirmDel ? "Wirklich löschen?" : "Löschen"}</button>` : ""}<button class="btn" data-a="save">Speichern</button></div>`; }
+  host.innerHTML = `<div id="scrim" data-a="close"><div class="sheet" onclick="event.stopPropagation()">${h}<button class="btn ghost" data-a="close">Abbrechen</button></div></div>`;
+}
+const toMin = v => { if (!v) return null; const [a, b] = v.split(":").map(Number); return a*60 + b; };
+function saveMeas() {
+  const s = sheet, ev = document.getElementById("f-ev").value, st = toMin(document.getElementById("f-start").value), sp = toMin(document.getElementById("f-stop").value);
+  const keep = { ev, st:document.getElementById("f-start").value, sp:document.getElementById("f-stop").value };
+  const fail = err => openSheet({ ...s, ...keep, err });
+  if (ev === "__new") return fail("Neues Ereignis anlegen ist im Prototyp nicht gebaut (siehe Editor-Ticket).");
+  if (st == null || sp == null) return fail("Start und Stopp angeben.");
+  if (sp <= st) return fail("Stopp muss nach dem Start liegen.");
+  if (s.k === TK && sp > NOW) return fail(`Stopp liegt in der Zukunft (jetzt ${hm(NOW)}).`);
+  const clash = (MEAS[s.k] || []).find(m => m.id !== s.id && st < (m.stop ?? NOW) && sp > m.start);
+  if (clash) return fail(`Überschneidet sich mit ${EVENTS[clash.ev]} ${hm(clash.start)}–${clash.stop ? hm(clash.stop) : "…"}. Erst diese Messung anpassen.`);
+  const sn = snap();
+  if (s.id) Object.assign(MEAS[s.k].find(m => m.id === s.id), { ev, start:st, stop:sp });
+  else (MEAS[s.k] ||= []).push({ id:nextId++, ev, start:st, stop:sp, chain:chName(tageskette(s.k).chain) });
+  closeSheet(); render(); toast(s.id ? "Messung gespeichert" : `${EVENTS[ev]} nachgetragen`, sn);
+}
+function setChain(c) {
+  const keys = sheet.kind === "day" ? [sheet.k] : sheet.keys, sn = snap();
+  keys.forEach(k => { if (c === "__rule") delete EXC[k]; else EXC[k] = c; });
+  closeSheet(); A.multi = false; A.range = false; A.sel = []; A.anchor = null; render();
+  toast(c === "__rule" ? `${keys.length === 1 ? fmtDay(keys[0]) : keys.length + " Tage"}: Wochenregel gilt wieder` : `${keys.length === 1 ? fmtDay(keys[0]) : keys.length + " Tage"} → ${chName(c)}`, sn);
+}
+function applyRange() {
+  const from = document.getElementById("g-from").value, to = document.getElementById("g-to").value, c = document.getElementById("g-chain").value;
+  const wds = WD_ORDER.filter(i => document.getElementById("g-wd-" + i).checked);
+  if (!from || !to || to < from) return openSheet({ kind:"range", from, to, err:"Bis muss am oder nach Von liegen." });
+  const sn = snap(); let n = 0;
+  for (let d = parse(from); key(d) <= to; d = addDays(d, 1)) { if (!wds.includes(d.getDay())) continue; const k = key(d); if (c === "__rule") delete EXC[k]; else EXC[k] = c; n++; }
+  closeSheet(); render(); toast(`${n} Tage → ${c === "__rule" ? "Wochenregel" : chName(c)}`, sn);
+}
+
+// ===================== Render & Varianten =====================
+const VARIANTS = [ { key:"raster", label:"A · Raster", fn:VariantA }, { key:"liste", label:"B · Liste", fn:VariantB }, { key:"pinsel", label:"C · Pinsel", fn:VariantC } ];
+let vi = Math.max(0, VARIANTS.findIndex(v => "#" + v.key === location.hash));
+function render() {
+  const app = document.getElementById("app"), top = app.scrollTop;
+  app.innerHTML = VARIANTS[vi].fn();
+  document.getElementById("vlabel").textContent = VARIANTS[vi].label;
+  if (VARIANTS[vi].key === "liste" && !B.scrolled) { B.scrolled = true; const r = document.getElementById("todayrow"); if (r) app.scrollTop = r.offsetTop - app.offsetTop - 60; }
+  else app.scrollTop = top;
+  renderDebug();
+}
+function setVariant(i) { vi = (i + VARIANTS.length) % VARIANTS.length; try { history.replaceState(null, "", "#" + VARIANTS[vi].key); } catch (e) {} closeSheet(); document.getElementById("app").scrollTop = 0; B.scrolled = false; render(); }
+addEventListener("hashchange", () => { const i = VARIANTS.findIndex(v => "#" + v.key === location.hash); if (i >= 0 && i !== vi) setVariant(i); });
+
+document.addEventListener("click", e => {
+  if (suppress) return;
+  const cellEl = e.target.closest("[data-cell]");
+  const t = e.target.closest("[data-a]");
+  if (cellEl && !t) {
+    const k = cellEl.dataset.cell, v = VARIANTS[vi].key;
+    if (v === "raster") aCell(k);
+    if (v === "pinsel" && C.tool === "view") { C.view = C.view === k ? null : k; render(); }
+    return;
+  }
+  if (e.target.closest("[data-rule]") && C.tool === "view") return openSheet({ kind:"rule" });
+  if (!t) return;
+  const a = t.dataset.a, d = t.dataset;
+  const nav = (o, n) => { o.m += n; if (o.m < 0) { o.m = 11; o.y--; } if (o.m > 11) { o.m = 0; o.y++; } render(); };
+  ({
+    close: closeSheet, undo: () => { if (undoSnap) { restore(undoSnap); undoSnap = null; document.getElementById("toast").hidden = true; render(); renderSheet(); } },
+    rule: () => openSheet({ kind:"rule" }), range: () => openSheet({ kind:"range" }), "range-apply": applyRange,
+    daychain: () => { e.stopPropagation(); openSheet({ kind:"chain", keys:[d.k] }); }, setchain: () => setChain(d.c),
+    add: () => openSheet({ kind:"meas", k:d.k, s:d.s, e:d.e }), edit: () => openSheet({ kind:"meas", k:d.k, id:+d.id }),
+    save: saveMeas, del: () => { if (!sheet.confirmDel) return openSheet({ ...sheet, confirmDel:true }); const sn = snap(), s = sheet;
+      const m = MEAS[s.k].find(x => x.id === s.id); MEAS[s.k] = MEAS[s.k].filter(x => x.id !== s.id); closeSheet(); render(); toast(`${EVENTS[m.ev]} gelöscht`, sn); },
+    "a-prev": () => nav(A, -1), "a-next": () => nav(A, 1), "c-prev": () => nav(C, -1), "c-next": () => nav(C, 1),
+    "a-multi": () => { A.multi = !(A.multi && !A.range); A.range = false; A.sel = []; A.anchor = null; render(); },
+    "a-range": () => { A.range = !A.range; A.multi = A.range; A.sel = []; A.anchor = null; render(); },
+    "a-assign": () => openSheet({ kind:"chain", keys:[...A.sel].sort() }),
+    "a-open": () => { A.proto = d.k; closeSheet(); document.getElementById("app").scrollTop = 0; render(); }, "a-back": () => { A.proto = null; render(); },
+    "b-toggle": () => { if (isFuture(d.k)) return openSheet({ kind:"chain", keys:[d.k] }); B.open = B.open === d.k ? null : d.k; render(); },
+    "c-tool": () => { C.tool = d.k; render(); },
+  }[a] || (() => {}))();
+});
+document.addEventListener("change", e => { const i = e.target.dataset.ruleSel; if (i == null) return; const sn = snap(); RULE[i] = e.target.value; render(); toast(`Wochenregel: ${WD_LONG[i]} → ${chName(e.target.value)}`, sn); });
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") setVariant(vi - 1); if (e.key === "ArrowRight") setVariant(vi + 1); if (e.key === "Escape") closeSheet();
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches(".dayrow")) { e.preventDefault(); e.target.click(); }
+});
+document.getElementById("pv").onclick = () => setVariant(vi - 1);
+document.getElementById("nv").onclick = () => setVariant(vi + 1);
+document.getElementById("dbg").onclick = () => { const d = document.getElementById("debug"); d.hidden = !d.hidden; renderDebug(); };
+function renderDebug() {
+  const d = document.getElementById("debug"); if (d.hidden) return;
+  const day = VARIANTS[vi].key === "raster" ? A.proto : VARIANTS[vi].key === "liste" ? B.open : C.view;
+  const view = {
+    wochenregel: Object.fromEntries(WD_ORDER.map(i => [WD[i], chName(RULE[i] ?? NONE)])),
+    tagesausnahmen: Object.fromEntries(Object.keys(EXC).sort().map(k => [k, chName(EXC[k])])),
+    ...(day ? { [`messungen ${day}`]: sorted(day).map(m => `${hm(m.start)}–${m.stop ? hm(m.stop) : "läuft"} ${EVENTS[m.ev]} (${m.chain})`) } : {}),
+  };
+  d.innerHTML = `<pre>${JSON.stringify(view, null, 2)}</pre>`;
+}
+render();
+</script>
