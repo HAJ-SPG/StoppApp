@@ -210,7 +210,7 @@ Nur die App öffnet die Datenbank ([ADR 0002](docs/adr/0002-app-besitzt-datenban
   - Neu angelegt wird nur, wenn sich die Tageskette von heute wirklich ändert (andere Kette oder keine). Wählt man dieselbe Kette erneut, bleibt der Fortschritt. Beim Neuanlegen werden „übersprungen“ und `naechster` zurückgesetzt.
   - Eine geänderte **Wochenregel** legt den heutigen Tageslauf nicht neu an, sie gilt wie eine Editor-Änderung ab morgen. Nur Tagesausnahmen und „Kette für heute wählen“ erneuern ihn.
   - Hat ein Tag keine Tageskette, wird kein Tageslauf angelegt. Bekommt er später eine, gilt sie sofort.
-  - Wird eine Kette gelöscht, wird `kette_id` in ihren Tagesläufen `null`; `kette_name` bleibt.
+  - Wird eine Kette gelöscht, bleiben ihre Tagesläufe mit `kette_name` erhalten. Der Kalender zeigt diese Tage neutral.
 - **Schrittstatus** wird abgeleitet: *erledigt* = Messung mit `schritt_position`, *läuft* = laufende Messung mit `schritt_position`, *übersprungen* = Eintrag in `uebersprungen` (ohne Messung), sonst *offen*. Der nächste Schritt ist `naechster`, falls offen oder übersprungen, sonst der erste offene Schritt.
 - **Eingeschobene** Messungen haben `schritt_position = null`. Nachgetragene ebenfalls, außer sie erledigen einen übersprungenen Schritt (Abschnitt 4).
 - **IDs** vergibt die Fachlogik (höchste ID + 1), damit Rückgängig nach dem Löschen dieselben IDs wiederherstellt.

@@ -85,7 +85,7 @@ class Messung {
   /// Name der Tageskette, unter der die Messung entstand (nur zur Information).
   final String? ketteName;
 
-  /// `null` = eingeschoben bzw. nachgetragen.
+  /// `null` = eingeschoben bzw. nachgetragen, ohne einen Schritt zu erledigen.
   final int? schrittPosition;
 
   bool get laeuft => stopp == null;
@@ -101,6 +101,8 @@ class Messung {
     DateTime? stopp,
     bool stoppLoeschen = false,
     Tag? tag,
+    int? schrittPosition,
+    bool schrittPositionLoeschen = false,
   }) =>
       Messung(
         id: id,
@@ -109,7 +111,7 @@ class Messung {
         stopp: stoppLoeschen ? null : (stopp ?? this.stopp),
         tag: tag ?? this.tag,
         ketteName: ketteName,
-        schrittPosition: schrittPosition,
+        schrittPosition: schrittPositionLoeschen ? null : (schrittPosition ?? this.schrittPosition),
       );
 
   @override

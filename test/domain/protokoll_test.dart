@@ -6,6 +6,10 @@ import 'hilfen.dart';
 void main() {
   (StoppDienst, FesteUhr) mitMessungen() {
     final (s, uhr, _) = dienst(jetzt: um(12, 0));
+    // Nachtragen geht erst, wenn die Schritte übersprungen sind.
+    s.ueberspringen();
+    s.ueberspringen();
+    s.ueberspringen();
     s.messungNachtragen(tag: freitag, ereignisId: 1, start: um(7, 0), stopp: um(7, 10));
     s.messungNachtragen(tag: freitag, ereignisId: 2, start: um(7, 12), stopp: um(7, 15));
     s.messungNachtragen(tag: freitag, ereignisId: 3, start: um(7, 30), stopp: um(8, 0));
@@ -27,7 +31,7 @@ void main() {
   test('nachgetragene Messungen bekommen den Kettennamen des Tages', () {
     final (s, _) = mitMessungen();
     expect(s.daten.messungen.values.every((m) => m.ketteName == 'Arbeitstag'), isTrue);
-    expect(s.daten.messungen.values.every((m) => m.schrittPosition == null), isTrue);
+    expect(s.daten.messungenAm(freitag).map((m) => m.schrittPosition), [0, 1, 2]);
   });
 
   test('„gemessen unter …“ bei anderem Kettennamen', () {

@@ -323,6 +323,8 @@ class StoppDienst {
     pruefeMessung(_daten, start: start, stopp: stopp, jetzt: jetzt);
     final e = _daten.ereignisse[ereignisId];
     if (e == null) throw const FachFehler('Unbekanntes Ereignis.');
+    tagesSicherstellen();
+    final position = nachtragungsSchritt(_daten, tag, ereignisId, heute: heute);
     return _aendern((d) => _mitMessung(
           d,
           Messung(
@@ -332,6 +334,7 @@ class StoppDienst {
             stopp: stopp.toUtc(),
             tag: tag,
             ketteName: d.tageslaeufe[tag]?.ketteName ?? tageskette(d, tag).kette?.name,
+            schrittPosition: position,
           ),
         ));
   }
@@ -346,8 +349,22 @@ class StoppDienst {
     if (m == null) throw const FachFehler('Unbekannte Messung.');
     if (m.laeuft) throw const FachFehler('Die laufende Messung wird auf dem Haupt-Screen korrigiert.');
     pruefeMessung(_daten, start: start, stopp: stopp, jetzt: jetzt, ignorieren: id);
-    return _aendern(
-        (d) => _mitMessung(d, m.kopie(ereignisId: ereignisId, start: start.toUtc(), stopp: stopp.toUtc())));
+    if (ereignisId == m.ereignisId) {
+      return _aendern(
+          (d) => _mitMessung(d, m.kopie(start: start.toUtc(), stopp: stopp.toUtc())));
+    }
+    // Neues Ereignis: Der alte Schritt wird frei, der neue folgt der Nachtragungs-Regel.
+    tagesSicherstellen();
+    final position = nachtragungsSchritt(_daten, m.tag, ereignisId, heute: heute, ignorieren: id);
+    return _aendern((d) => _mitMessung(
+        d,
+        m.kopie(
+          ereignisId: ereignisId,
+          start: start.toUtc(),
+          stopp: stopp.toUtc(),
+          schrittPosition: position,
+          schrittPositionLoeschen: position == null,
+        )));
   }
 
   Aenderung messungLoeschen(int id) {

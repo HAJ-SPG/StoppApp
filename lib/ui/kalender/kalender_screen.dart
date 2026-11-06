@@ -239,7 +239,7 @@ class _Zelle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = context.farben;
-    final info = tageskette(daten, tag);
+    final info = kalenderKette(daten, tag, heute);
     final k = info.kette;
     final ausnahme = info.hatAusnahme && k != null;
     final Color hintergrund = k == null ? Colors.transparent : (ausnahme ? f.kette(k.farbe) : f.ketteHell(k.farbe));

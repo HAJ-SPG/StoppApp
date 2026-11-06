@@ -1,4 +1,5 @@
 import 'datenbestand.dart';
+import 'fehler.dart';
 import 'modelle.dart';
 import 'tag.dart';
 
@@ -135,4 +136,31 @@ HeuteZustand heuteZustand(Datenbestand d, DateTime jetzt) {
     laufend: laufend,
     messungen: messungen,
   );
+}
+
+/// Der Schritt, den eine Nachtragung von [ereignisId] am [tag] erledigt.
+///
+/// - Hat das Ereignis im Tageslauf einen übersprungenen Schritt, ist es der
+///   erste davon. An vergangenen Tagen ist die Kette verfallen, dort zählen
+///   offene Schritte wie übersprungene.
+/// - Wartet heute nur ein offener Schritt mit diesem Ereignis, ist Nachtragen
+///   gesperrt: Nachtragen heißt nachher eintragen, nicht vorab.
+/// - Sonst `null`: Die Messung zählt wie eingeschoben.
+///
+/// [ignorieren] ist die Messung, die gerade bearbeitet wird.
+int? nachtragungsSchritt(Datenbestand d, Tag tag, int ereignisId, {required Tag heute, int? ignorieren}) {
+  final lauf = d.tageslaeufe[tag];
+  if (lauf == null) return null;
+  final messungen = d.messungenAm(tag).where((m) => m.id != ignorieren).toList();
+  final schritte = schrittStatus(lauf, messungen).where((s) => s.ereignisId == ereignisId).toList();
+  final vergangen = tag.istVor(heute);
+  for (final s in schritte) {
+    if (s.status == SchrittStatus.uebersprungen || (vergangen && s.status == SchrittStatus.offen)) {
+      return s.position;
+    }
+  }
+  if (!vergangen && schritte.any((s) => s.status == SchrittStatus.offen)) {
+    throw const FachFehler('Dieser Schritt ist noch offen. Erst überspringen oder normal messen.');
+  }
+  return null;
 }

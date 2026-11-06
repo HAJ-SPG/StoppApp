@@ -2,7 +2,7 @@ import 'datenbestand.dart';
 import 'modelle.dart';
 import 'tag.dart';
 
-enum KettenQuelle { keine, wochenregel, ausnahme }
+enum KettenQuelle { keine, wochenregel, ausnahme, tageslauf }
 
 class TagesketteInfo {
   const TagesketteInfo(this.kette, this.quelle);
@@ -22,4 +22,18 @@ TagesketteInfo tageskette(Datenbestand d, Tag tag) {
   final id = d.wochenregel[tag.wochentag];
   final k = id == null ? null : d.ketten[id];
   return TagesketteInfo(k, k == null ? KettenQuelle.keine : KettenQuelle.wochenregel);
+}
+
+/// Die Kette, die der Kalender für [tag] zeigt.
+///
+/// Heute und künftige Tage zeigen die Tageskette. Vergangene Tage zeigen,
+/// was tatsächlich gelaufen ist: eine Tagesausnahme des Tages, sonst die Kette
+/// aus seinem Tageslauf. Ohne Tageslauf, oder wenn die Kette inzwischen
+/// gelöscht ist, zeigt der Tag keine Kette. Eine spätere Änderung der
+/// Wochenregel färbt die Vergangenheit also nicht um.
+TagesketteInfo kalenderKette(Datenbestand d, Tag tag, Tag heute) {
+  if (!tag.istVor(heute) || d.tagesausnahmen.containsKey(tag)) return tageskette(d, tag);
+  final id = d.tageslaeufe[tag]?.ketteId;
+  final k = id == null ? null : d.ketten[id];
+  return TagesketteInfo(k, k == null ? KettenQuelle.keine : KettenQuelle.tageslauf);
 }
