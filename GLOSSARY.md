@@ -37,3 +37,11 @@ _Avoid_: Override, Sonderfall
 **Tageskette**:
 Die Ereigniskette, die an einem bestimmten Datum gilt: die Tagesausnahme, falls vorhanden, sonst die Wochenregel.
 _Avoid_: aktive Kette, Tagesplan
+
+**Tageslauf**:
+Der Schnappschuss der Tageskette für ein Datum samt Fortschritt (erledigte, übersprungene, gewählte Schritte). Änderungen an der Ereigniskette wirken erst auf den Tageslauf des nächsten Tages.
+_Avoid_: Session, Durchlauf
+
+**Nachtragung**:
+Eine Messung, die man nachträglich ins Tagesprotokoll einträgt, statt sie live zu messen. Sie kann nur einen Schritt erledigen, der schon übersprungen ist; einen noch offenen Schritt misst man live.
+_Avoid_: Nachtrag, manuelle Messung

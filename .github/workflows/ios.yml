@@ -1,0 +1,37 @@
+# Prüft, ob der iOS-Code kompiliert (ohne Signatur, ohne Gerät).
+# Läuft nur, wenn sich iOS-Code ändert, oder von Hand (Actions → iOS → Run
+# workflow). macOS-Minuten zählen bei privaten Repos zehnfach.
+name: iOS
+
+on:
+  push:
+    branches: [main, "build/**"]
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.9
+          cache: true
+
+      - name: Abhängigkeiten
+        run: flutter pub get
+
+      - name: App bauen (Runner, ohne Signatur)
+        run: flutter build ios --debug --no-codesign
+
+      - name: Widget-Extension prüfen (Swift-Typprüfung wie im Target StoppWidgetExtension)
+        run: |
+          xcrun --sdk iphoneos swiftc -typecheck -parse-as-library \
+            -target arm64-apple-ios17.0 \
+            ios/Gemeinsam/StoppAktivitaet.swift \
+            ios/Gemeinsam/StoppAktion.swift \
+            ios/StoppWidget/StoppWidget.swift

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_flaeche">#FF18221E</color>
+    <color name="widget_rand">#FF2C3A34</color>
+    <color name="widget_tinte">#FFE6EEEA</color>
+    <color name="widget_leise">#FF93A39B</color>
+    <color name="widget_start">#FF3FBF8A</color>
+    <color name="widget_stopp">#FFF06A50</color>
+    <color name="widget_auf_farbe">#FF0F1714</color>
+</resources>
